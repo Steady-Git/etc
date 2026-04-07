@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌅 일출·일몰 시각 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sunrise: #f97316;
+    --sunset: #7c3aed;
+    --moon: #3b82f6;
+    --gold: #eab308;
+    --bg-day: linear-gradient(160deg, #fff7ed 0%, #fef3c7 40%, #e0f2fe 100%);
+    --card: #ffffff;
+    --text: #1c1917;
+    --muted: #78716c;
+    --border: #e7e5e4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg-day);
+    min-height: 100vh;
+    color: var(--text);
+  }
+
+  /* Sky header */
+  .sky {
+    position: relative;
+    overflow: hidden;
+    padding: 32px 20px 28px;
+    background: linear-gradient(160deg, #1e3a5f 0%, #c2410c 45%, #f97316 70%, #fbbf24 100%);
+    text-align: center;
+    color: white;
+  }
+  .sky::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 60% 80%, rgba(251,191,36,0.45) 0%, transparent 60%),
+                radial-gradient(ellipse at 20% 60%, rgba(124,58,237,0.2) 0%, transparent 50%);
+  }
+  .sky-content { position: relative; z-index: 1; }
+  .sky h1 { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; text-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .sky p { font-size: 13px; opacity: 0.9; }
+
+  /* Sun arc animation */
+  .sun-arc {
+    position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 100px;
+    border: 2px dashed rgba(255,255,255,0.25);
+    border-bottom: none;
+    border-radius: 100px 100px 0 0;
+  }
+  .sun-dot {
+    position: absolute; width: 18px; height: 18px;
+    background: #fbbf24; border-radius: 50%;
+    box-shadow: 0 0 16px 6px rgba(251,191,36,0.6);
+    top: -9px; left: 50%; transform: translateX(-50%);
+    animation: pulse-sun 2s ease-in-out infinite;
+  }
+  @keyframes pulse-sun { 0%,100%{box-shadow:0 0 12px 4px rgba(251,191,36,0.5)} 50%{box-shadow:0 0 24px 10px rgba(251,191,36,0.8)} }
+
+  /* Main */
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+
+  /* Search card */
+  .search-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+  }
+  .search-card h2 { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 14px; letter-spacing: 0.5px; }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 120px; }
+  label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  select, input[type=date] {
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: #fafaf9;
+    outline: none;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  select:focus, input:focus { border-color: var(--sunrise); }
+  .btn-search {
+    align-self: flex-end;
+    padding: 10px 22px;
+    background: linear-gradient(135deg, var(--sunrise), #dc2626);
+    color: white;
+    border: none;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 3px 12px rgba(249,115,22,0.35);
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .btn-search:hover { transform: translateY(-2px); opacity: 0.92; }
+
+  /* Notice */
+  .notice {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: #92400e;
+    margin-bottom: 20px;
+    line-height: 1.75;
+  }
+  .notice code {
+    background: #fef3c7;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+
+  /* Result area */
+  #result { animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Date title */
+  .date-title {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .date-title span { color: var(--text); font-size: 18px; }
+
+  /* Main info cards */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .info-card {
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.08);
+  }
+  .info-card::before {
+    content: '';
+    position: absolute; top: -20px; right: -20px;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    opacity: 0.12;
+  }
+  .card-sunrise { background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1.5px solid #fed7aa; }
+  .card-sunrise::before { background: var(--sunrise); }
+  .card-sunset  { background: linear-gradient(135deg, #f5f3ff, #ede9fe); border: 1.5px solid #ddd6fe; }
+  .card-sunset::before  { background: var(--sunset); }
+  .card-moonrise { background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1.5px solid #bfdbfe; }
+  .card-moonrise::before { background: var(--moon); }
+  .card-moonset { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1.5px solid #bbf7d0; }
+  .card-moonset::before { background: #16a34a; }
+
+  .card-icon { font-size: 28px; margin-bottom: 6px; display: block; }
+  .card-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 4px; }
+  .card-time { font-size: 28px; font-weight: 900; letter-spacing: -1px; }
+  .card-time.sunrise-color { color: var(--sunrise); }
+  .card-time.sunset-color  { color: var(--sunset); }
+  .card-time.moon-color    { color: var(--moon); }
+  .card-time.moonset-color { color: #16a34a; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* Daylight bar */
+  .daylight-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  .daylight-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .daylight-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+  .daylight-duration { font-size: 18px; font-weight: 900; color: var(--sunrise); }
+  .bar-bg {
+    height: 12px;
+    background: #f3f4f6;
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #fbbf24, var(--sunrise));
+    transition: width 1s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .bar-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 10px;
+    color: #a8a29e;
+  }
+
+  /* Detail table */
+  .detail-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+  .detail-card h3 { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 14px; letter-spacing: 0.4px; }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .detail-table tr { border-bottom: 1px solid #f5f5f4; }
+  .detail-table tr:last-child { border-bottom: none; }
+  .detail-table td { padding: 9px 4px; }
+  .detail-table td:first-child { color: var(--muted); font-size: 13px; width: 50%; }
+  .detail-table td:last-child { font-weight: 700; text-align: right; color: var(--text); }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* Loading */
+  .loading { text-align: center; padding: 48px 0; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid #fed7aa;
+    border-top-color: var(--sunrise);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { font-size: 14px; color: var(--muted); }
+
+  /* Error */
+  .error-box {
+    background: #fef2f2;
+    border: 1.5px solid #fecaca;
+    border-left: 4px solid #dc2626;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 13px;
+    color: #7f1d1d;
+    line-height: 1.8;
+  }
+
+  /* Empty */
+  .empty {
+    text-align: center;
+    padding: 56px 0;
+    color: var(--muted);
+  }
+  .empty .icon { font-size: 56px; margin-bottom: 14px; }
+  .empty p { font-size: 15px; font-weight: 600; }
+  .empty small { font-size: 12.5px; }
+
+  /* Footer */
+  .footer-note {
+    margin-top: 24px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .footer-note strong { color: var(--text); }
+  .footer-note a { color: var(--sunrise); }
+
+  @media (max-width: 420px) {
+    .info-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .card-time { font-size: 22px; }
+    .sky h1 { font-size: 21px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sky header -->
+<div class="sky">
+  <div class="sun-arc"><div class="sun-dot"></div></div>
+  <div class="sky-content">
+    <h1>🌅 일출 · 일몰 시각 조회</h1>
+    <p>한국천문연구원 공공데이터 API 서비스</p>
+  </div>
+</div>
+
+<main>
+
+  <!-- CORS 안내 -->
+  <div class="notice">
+    ⚠️ <strong>실행 방법 안내:</strong> HTML 파일을 그냥 더블클릭하면 보안 정책(CORS)으로 API가 차단될 수 있어요.<br>
+    👉 명령 프롬프트(cmd)에서 파일이 있는 폴더로 이동 후 아래 명령어 입력:<br>
+    &nbsp;&nbsp;<code>python -m http.server 8000</code><br>
+    &nbsp;&nbsp;→ 브라우저에서 <code>http://localhost:8000/일출일몰.html</code> 접속
+  </div>
+
+  <!-- 검색 -->
+  <div class="search-card">
+    <h2>📍 조회 조건</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>지역</label>
+        <select id="location">
+          <option value="1">서울</option>
+          <option value="2">인천</option>
+          <option value="3">울릉도/독도</option>
+          <option value="4">수원</option>
+          <option value="5">강릉</option>
+          <option value="6">춘천</option>
+          <option value="7">청주</option>
+          <option value="8">대전</option>
+          <option value="9">안동</option>
+          <option value="10">포항</option>
+          <option value="11">대구</option>
+          <option value="12">전주</option>
+          <option value="13">울산</option>
+          <option value="14">광주</option>
+          <option value="15">부산</option>
+          <option value="16">통영</option>
+          <option value="17">목포</option>
+          <option value="18">여수</option>
+          <option value="19">제주</option>
+          <option value="20">서귀포</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>날짜</label>
+        <input type="date" id="locdate" />
+      </div>
+      <button class="btn-search" onclick="doSearch()">🔍 조회</button>
+    </div>
+  </div>
+
+  <div id="result">
+    <div class="empty">
+      <div class="icon">🌄</div>
+      <p>지역과 날짜를 선택 후 조회하세요</p>
+      <small style="display:block;margin-top:6px">일출·일몰·월출·월몰·박명 시각을 확인할 수 있어요</small>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    📌 데이터 출처: <strong>한국천문연구원</strong> 천문우주지식정보 공공데이터 API<br>
+    EndPoint: <strong>apis.data.go.kr/B090041/openapi/service/RiseSetInfoService</strong><br>
+    더 자세한 정보는 <a href="https://astro.kasi.re.kr" target="_blank">천문우주지식정보 공식 사이트</a>에서 확인하세요.
+  </div>
+
+</main>
+
+<script>
+const API_KEY = "dc8294cd0177c5d51b45be29652fb691c4b18e055f22c87b0967ca1a78c7df0a";
+const BASE_URL = "https://apis.data.go.kr/B090041/openapi/service/RiseSetInfoService/getAreaRiseSetInfo";
+
+const LOCATION_NAMES = {
+  "1":"서울","2":"인천","3":"울릉도/독도","4":"수원","5":"강릉",
+  "6":"춘천","7":"청주","8":"대전","9":"안동","10":"포항",
+  "11":"대구","12":"전주","13":"울산","14":"광주","15":"부산",
+  "16":"통영","17":"목포","18":"여수","19":"제주","20":"서귀포"
+};
+
+// 오늘 날짜 기본값
+const today = new Date();
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth()+1).padStart(2,'0');
+const dd = String(today.getDate()).padStart(2,'0');
+document.getElementById('locdate').value = `${yyyy}-${mm}-${dd}`;
+
+function formatTime(t) {
+  if (!t || t === '-') return '-';
+  t = String(t).trim().padStart(4, '0');
+  const h = t.slice(0, 2);
+  const m = t.slice(2, 4);
+  return `${h}:${m}`;
+}
+
+function timeToMinutes(t) {
+  if (!t || t === '-') return null;
+  t = String(t).trim().padStart(4, '0');
+  return parseInt(t.slice(0,2)) * 60 + parseInt(t.slice(2,4));
+}
+
+function minutesToHHMM(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}시간 ${m}분`;
+}
+
+async function doSearch() {
+  const locCode = document.getElementById('location').value;
+  const dateVal = document.getElementById('locdate').value.replace(/-/g, '');
+  const locName = LOCATION_NAMES[locCode];
+
+  if (!dateVal) { alert('날짜를 선택해주세요!'); return; }
+
+  const resultEl = document.getElementById('result');
+  resultEl.innerHTML = `<div class="loading"><div class="spinner"></div><p>데이터를 불러오는 중...</p></div>`;
+
+  const params = new URLSearchParams({
+    serviceKey: API_KEY,
+    locdate: dateVal,
+    location: locCode,
+    _type: 'json',
+  });
+
+  try {
+    const res = await fetch(`${BASE_URL}?${params}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    const text = await res.text();
+    let data;
+
+    // JSON 또는 XML 파싱
+    try {
+      const json = JSON.parse(text);
+      data = json.response?.body?.items?.item || json.response?.body?.item;
+    } catch {
+      // XML 파싱
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, 'text/xml');
+      const item = xml.querySelector('item');
+      if (!item) throw new Error('데이터 없음');
+      data = {};
+      item.childNodes.forEach(n => {
+        if (n.nodeType === 1) data[n.nodeName] = n.textContent;
+      });
+    }
+
+    if (!data) throw new Error('응답 데이터 없음');
+    renderResult(data, locName, dateVal);
+
+  } catch (e) {
+    resultEl.innerHTML = `
+      <div class="error-box">
+        ⚠️ <strong>API 호출 실패:</strong> ${e.message}<br><br>
+        <strong>가능한 원인:</strong><br>
+        &nbsp; • 브라우저 CORS 보안 정책으로 차단됨<br>
+        &nbsp; • API 키 만료 또는 일일 한도 초과 (10,000회/일)<br><br>
+        <strong>해결 방법:</strong><br>
+        &nbsp; 명령 프롬프트에서 <code style="background:#fee2e2;padding:2px 6px;border-radius:4px;font-family:monospace">python -m http.server 8000</code> 실행 후<br>
+        &nbsp; <code style="background:#fee2e2;padding:2px 6px;border-radius:4px;font-family:monospace">http://localhost:8000</code> 으로 접속하세요.
+      </div>`;
+  }
+}
+
+function renderResult(d, locName, dateStr) {
+  const dateFormatted = `${dateStr.slice(0,4)}년 ${dateStr.slice(4,6)}월 ${dateStr.slice(6,8)}일`;
+
+  const sunrise = formatTime(d.sunrise);
+  const sunset  = formatTime(d.sunset);
+  const sunnoon = formatTime(d.sunnoon);
+  const moonrise= formatTime(d.moonrise);
+  const moonset = formatTime(d.moonset);
+  const moonnoon= formatTime(d.moonnoon);
+  const civilm  = formatTime(d.civilm);  // 시민박명(아침)
+  const civile  = formatTime(d.civile);  // 시민박명(저녁)
+  const nautm   = formatTime(d.nautm);   // 항해박명(아침)
+  const naute   = formatTime(d.naute);   // 항해박명(저녁)
+  const astrom  = formatTime(d.astrom);  // 천문박명(아침)
+  const astroe  = formatTime(d.astroe);  // 천문박명(저녁)
+
+  // 낮 길이 계산
+  const riseMin = timeToMinutes(d.sunrise);
+  const setMin  = timeToMinutes(d.sunset);
+  let daylightStr = '-';
+  let barPct = 50;
+  if (riseMin !== null && setMin !== null) {
+    const dur = setMin - riseMin;
+    daylightStr = minutesToHHMM(dur);
+    barPct = Math.round((dur / (24 * 60)) * 100);
+  }
+
+  document.getElementById('result').innerHTML = `
+    <div class="date-title">📅 ${dateFormatted} &nbsp;|&nbsp; <span>📍 ${locName}</span></div>
+
+    <!-- 메인 카드 4개 -->
+    <div class="info-grid">
+      <div class="info-card card-sunrise">
+        <span class="card-icon">🌅</span>
+        <div class="card-label">일출</div>
+        <div class="card-time sunrise-color">${sunrise}</div>
+        <div class="card-sub">태양이 떠오르는 시각</div>
+      </div>
+      <div class="info-card card-sunset">
+        <span class="card-icon">🌇</span>
+        <div class="card-label">일몰</div>
+        <div class="card-time sunset-color">${sunset}</div>
+        <div class="card-sub">태양이 지는 시각</div>
+      </div>
+      <div class="info-card card-moonrise">
+        <span class="card-icon">🌕</span>
+        <div class="card-label">월출</div>
+        <div class="card-time moon-color">${moonrise}</div>
+        <div class="card-sub">달이 떠오르는 시각</div>
+      </div>
+      <div class="info-card card-moonset">
+        <span class="card-icon">🌑</span>
+        <div class="card-label">월몰</div>
+        <div class="card-time moonset-color">${moonset}</div>
+        <div class="card-sub">달이 지는 시각</div>
+      </div>
+    </div>
+
+    <!-- 낮 길이 바 -->
+    <div class="daylight-card">
+      <div class="daylight-header">
+        <span class="daylight-label">☀️ 낮 길이</span>
+        <span class="daylight-duration">${daylightStr}</span>
+      </div>
+      <div class="bar-bg">
+        <div class="bar-fill" id="barFill" style="width:0%"></div>
+      </div>
+      <div class="bar-ticks">
+        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+      </div>
+    </div>
+
+    <!-- 상세 시각 -->
+    <div class="detail-card">
+      <h3>🌞 태양 상세 시각</h3>
+      <table class="detail-table">
+        <tr><td>🌅 일출</td><td>${sunrise}</td></tr>
+        <tr><td>⬆️ 일중 (남중고도 최고)</td><td>${sunnoon}</td></tr>
+        <tr><td>🌇 일몰</td><td>${sunset}</td></tr>
+        <tr><td>🌆 시민박명 (아침) <span class="tag" style="background:#fff7ed;color:#c2410c">하늘이 밝아짐</span></td><td>${civilm}</td></tr>
+        <tr><td>🌆 시민박명 (저녁)</td><td>${civile}</td></tr>
+        <tr><td>🛳 항해박명 (아침)</td><td>${nautm}</td></tr>
+        <tr><td>🛳 항해박명 (저녁)</td><td>${naute}</td></tr>
+        <tr><td>🔭 천문박명 (아침)</td><td>${astrom}</td></tr>
+        <tr><td>🔭 천문박명 (저녁)</td><td>${astroe}</td></tr>
+      </table>
+    </div>
+
+    <div class="detail-card">
+      <h3>🌕 달 상세 시각</h3>
+      <table class="detail-table">
+        <tr><td>🌕 월출</td><td>${moonrise}</td></tr>
+        <tr><td>⬆️ 월중 (남중고도 최고)</td><td>${moonnoon}</td></tr>
+        <tr><td>🌑 월몰</td><td>${moonset}</td></tr>
+      </table>
+    </div>
+  `;
+
+  // 바 애니메이션
+  setTimeout(() => {
+    document.getElementById('barFill').style.width = barPct + '%';
+  }, 100);
+}
+
+// 엔터키
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+</script>
+</body>
+</html>
