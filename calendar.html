@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>대한민국 기념일 달력</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --ink: #1a1a1a;
+      --paper: #f5f0e8;
+      --red: #c0392b;
+      --gold: #b8860b;
+      --muted: #7a7060;
+      --line: #d8d0bc;
+      --sunday: #c0392b;
+      --saturday: #2c5f8a;
+      --holiday-bg: #fdf3f2;
+      --today-ring: #b8860b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Noto Serif KR', serif;
+      min-height: 100vh;
+      padding: 0;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 39px,
+          rgba(0,0,0,0.04) 40px
+        );
+    }
+
+    /* ── header ── */
+    .site-header {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 28px 40px 24px;
+      display: flex;
+      align-items: flex-end;
+      gap: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .site-header::before {
+      content: '大韓民國';
+      position: absolute;
+      right: -10px;
+      top: -18px;
+      font-size: 96px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.04);
+      letter-spacing: -4px;
+      user-select: none;
+    }
+    .header-title { flex: 1; }
+    .header-title h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+    .header-title p {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: rgba(245,240,232,0.45);
+      margin-top: 6px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .nav-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: var(--paper);
+      font-size: 1.2rem;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,0.18); }
+    .ym-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      color: var(--paper);
+      min-width: 110px;
+      text-align: center;
+    }
+
+    /* ── main layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 0;
+      max-width: 1100px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+
+    /* ── calendar grid ── */
+    .calendar-wrap {
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.06);
+    }
+    .dow-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom: 2px solid var(--ink);
+    }
+    .dow-cell {
+      padding: 10px 0;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .dow-cell:first-child { color: var(--sunday); }
+    .dow-cell:last-child  { color: var(--saturday); }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+    .day-cell {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      min-height: 100px;
+      padding: 8px 10px 6px;
+      position: relative;
+      cursor: default;
+      transition: background .15s;
+    }
+    .day-cell:nth-child(7n) { border-right: none; }
+    .day-cell:hover { background: rgba(0,0,0,0.015); }
+    .day-cell.empty { background: rgba(0,0,0,0.012); }
+    .day-cell.has-holiday { background: var(--holiday-bg); }
+    .day-cell.today .day-num {
+      background: var(--today-ring);
+      color: #fff;
+      border-radius: 50%;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .day-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+    }
+    .day-cell.sunday .day-num,
+    .day-cell.is-holiday .day-num { color: var(--sunday); }
+    .day-cell.saturday .day-num  { color: var(--saturday); }
+
+    .holiday-tags {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .htag {
+      font-size: 0.6rem;
+      line-height: 1.3;
+      padding: 2px 5px;
+      border-radius: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .htag.holiday {
+      background: #fde8e6;
+      color: var(--red);
+      font-weight: 600;
+    }
+    .htag.anniversary {
+      background: #e8f0e8;
+      color: #2d6a2d;
+    }
+
+    /* ── sidebar ── */
+    .sidebar {
+      padding: 0 0 0 24px;
+    }
+    .sidebar-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.06);
+      margin-bottom: 18px;
+    }
+    .card-title {
+      background: var(--ink);
+      color: var(--paper);
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+      padding: 10px 14px;
+    }
+    .card-body { padding: 14px; }
+
+    .event-list { list-style: none; }
+    .event-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      align-items: flex-start;
+      animation: fadeIn .3s ease both;
+    }
+    .event-item:last-child { border-bottom: none; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; } }
+
+    .event-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      min-width: 32px;
+      line-height: 1.4;
+      padding-top: 1px;
+    }
+    .event-name {
+      font-size: 0.78rem;
+      line-height: 1.5;
+      flex: 1;
+    }
+    .event-name.is-hol { color: var(--red); font-weight: 600; }
+    .event-name.is-ann { color: #2d6a2d; }
+
+    .legend { display: flex; flex-direction: column; gap: 8px; }
+    .leg-item { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; }
+    .leg-dot {
+      width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+    }
+
+    /* ── status bar ── */
+    .status-bar {
+      background: var(--ink);
+      color: rgba(245,240,232,0.5);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 1px;
+      padding: 8px 40px;
+      display: flex;
+      gap: 24px;
+    }
+    .status-bar span b { color: var(--paper); }
+
+    /* loading / error */
+    .loader {
+      display: flex; align-items: center; justify-content: center;
+      padding: 60px 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-family: 'DM Mono', monospace;
+      gap: 10px;
+    }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--line);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-notice {
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: center;
+      padding: 18px 0;
+      font-family: 'DM Mono', monospace;
+    }
+
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { padding: 0; margin-top: 18px; }
+      .day-cell { min-height: 64px; padding: 5px 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-title">
+    <h1>대한민국 기념일 달력</h1>
+    <p>Korea Astronomical Research Institute · Special Day Calendar</p>
+  </div>
+  <div class="nav-controls">
+    <button class="nav-btn" id="prevBtn">&#8592;</button>
+    <div class="ym-label" id="ymLabel">──── ──</div>
+    <button class="nav-btn" id="nextBtn">&#8594;</button>
+  </div>
+</header>
+
+<div class="status-bar">
+  <span>SOURCE <b>data.go.kr / KASI</b></span>
+  <span>FORMAT <b>XML · REST</b></span>
+  <span id="statusLoad">STATUS <b>대기중</b></span>
+</div>
+
+<div class="layout">
+  <div>
+    <div class="calendar-wrap">
+      <div class="dow-row">
+        <div class="dow-cell">일</div>
+        <div class="dow-cell">월</div>
+        <div class="dow-cell">화</div>
+        <div class="dow-cell">수</div>
+        <div class="dow-cell">목</div>
+        <div class="dow-cell">금</div>
+        <div class="dow-cell">토</div>
+      </div>
+      <div class="days-grid" id="daysGrid">
+        <div class="loader"><div class="spinner"></div>달력을 불러오는 중...</div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-card">
+      <div class="card-title">이달의 기념일</div>
+      <div class="card-body">
+        <ul class="event-list" id="eventList">
+          <li class="loader" style="padding:20px 0"><div class="spinner"></div></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="card-title">범례</div>
+      <div class="card-body">
+        <div class="legend">
+          <div class="leg-item">
+            <div class="leg-dot" style="background:#fde8e6;border:1.5px solid #c0392b"></div>
+            <span>공휴일 (법정)</span>
+          </div>
+          <div class="leg-item">
+            <div class="leg-dot" style="background:#e8f0e8;border:1.5px solid #2d6a2d"></div>
+            <span>기념일</span>
+          </div>
+          <div class="leg-item">
+            <div class="leg-dot" style="background:#fff3cd;border:1.5px solid #b8860b;border-radius:50%"></div>
+            <span>오늘</span>
+          </div>
+          <div class="leg-item">
+            <div class="leg-dot" style="background:#c0392b;border-radius:50%"></div>
+            <span>일요일</span>
+          </div>
+          <div class="leg-item">
+            <div class="leg-dot" style="background:#2c5f8a;border-radius:50%"></div>
+            <span>토요일</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const API_KEY_ENC = 'dc8294cd0177c5d51b45be29652fb691c4b18e055f22c87b0967ca1a78c7df0a';
+const BASE_URL    = 'https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService';
+
+// CORS proxy for browser-side fetch
+const PROXY = 'https://api.allorigins.win/raw?url=';
+
+let curYear, curMonth;
+let holidayCache = {}; // "YYYYMM" -> [{date,name,isHoliday}]
+
+const today = new Date();
+
+function pad2(n) { return String(n).padStart(2,'0'); }
+
+function cacheKey(y,m) { return `${y}${pad2(m)}`; }
+
+async function fetchMonthData(year, month) {
+  const key = cacheKey(year, month);
+  if (holidayCache[key]) return holidayCache[key];
+
+  const mm = pad2(month);
+  const params = new URLSearchParams({
+    serviceKey: API_KEY_ENC,
+    solYear: year,
+    solMonth: mm,
+    numOfRows: 50,
+    pageNo: 1,
+    _type: 'xml'
+  });
+
+  const endpoints = [
+    `${BASE_URL}/getRestDeInfo?${params}`,    // 공휴일
+    `${BASE_URL}/getAnniversaryInfo?${params}` // 기념일
+  ];
+
+  const results = [];
+
+  for (const url of endpoints) {
+    try {
+      const proxyUrl = PROXY + encodeURIComponent(url);
+      const res = await fetch(proxyUrl);
+      const text = await res.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, 'text/xml');
+      const items = xml.querySelectorAll('item');
+      items.forEach(item => {
+        const dateStr = item.querySelector('locdate')?.textContent?.trim() || '';
+        const name    = item.querySelector('dateName')?.textContent?.trim() || '';
+        const isHol   = item.querySelector('isHoliday')?.textContent?.trim() === 'Y';
+        if (dateStr && name) {
+          results.push({ date: dateStr, name, isHoliday: isHol });
+        }
+      });
+    } catch(e) {
+      console.warn('fetch failed', e);
+    }
+  }
+
+  // Deduplicate
+  const seen = new Set();
+  const unique = results.filter(r => {
+    const k = r.date + r.name;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  holidayCache[key] = unique;
+  return unique;
+}
+
+function groupByDate(events) {
+  const map = {};
+  events.forEach(e => {
+    if (!map[e.date]) map[e.date] = [];
+    map[e.date].push(e);
+  });
+  return map;
+}
+
+async function renderCalendar(year, month) {
+  document.getElementById('ymLabel').textContent = `${year}.${pad2(month)}`;
+  document.getElementById('statusLoad').innerHTML = `STATUS <b>불러오는 중...</b>`;
+  document.getElementById('daysGrid').innerHTML =
+    `<div class="loader" style="grid-column:1/-1"><div class="spinner"></div>데이터 로딩 중...</div>`;
+  document.getElementById('eventList').innerHTML =
+    `<li class="loader" style="padding:20px 0"><div class="spinner"></div></li>`;
+
+  const events = await fetchMonthData(year, month);
+  const byDate  = groupByDate(events);
+
+  const firstDay = new Date(year, month - 1, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const todayStr = `${today.getFullYear()}${pad2(today.getMonth()+1)}${pad2(today.getDate())}`;
+
+  let html = '';
+
+  // Empty leading cells
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="day-cell empty"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr  = `${year}${pad2(month)}${pad2(d)}`;
+    const dow      = (firstDay + d - 1) % 7; // 0=Sun,6=Sat
+    const isSun    = dow === 0;
+    const isSat    = dow === 6;
+    const isToday  = dateStr === todayStr;
+    const dayEvs   = byDate[dateStr] || [];
+    const hasHol   = dayEvs.some(e => e.isHoliday);
+    const hasAnn   = dayEvs.some(e => !e.isHoliday);
+
+    let cls = 'day-cell';
+    if (isSun || hasHol) cls += ' sunday is-holiday';
+    if (isSat)           cls += ' saturday';
+    if (isToday)         cls += ' today';
+    if (dayEvs.length)   cls += ' has-holiday';
+
+    let tags = '';
+    dayEvs.forEach(e => {
+      const tc = e.isHoliday ? 'holiday' : 'anniversary';
+      tags += `<div class="htag ${tc}" title="${e.name}">${e.name}</div>`;
+    });
+
+    html += `
+      <div class="${cls}">
+        <div class="day-num">${d}</div>
+        <div class="holiday-tags">${tags}</div>
+      </div>`;
+  }
+
+  // Trailing empty cells to complete last row
+  const total = firstDay + daysInMonth;
+  const remainder = total % 7;
+  if (remainder !== 0) {
+    for (let i = 0; i < 7 - remainder; i++) {
+      html += `<div class="day-cell empty"></div>`;
+    }
+  }
+
+  document.getElementById('daysGrid').innerHTML = html;
+
+  // Sidebar event list
+  const sorted = [...events].sort((a,b) => a.date.localeCompare(b.date));
+  if (sorted.length === 0) {
+    document.getElementById('eventList').innerHTML =
+      `<li class="empty-notice">이달 기념일 없음</li>`;
+  } else {
+    let listHtml = '';
+    sorted.forEach((e, i) => {
+      const d = e.date.slice(6); // DD
+      const cls = e.isHoliday ? 'is-hol' : 'is-ann';
+      listHtml += `
+        <li class="event-item" style="animation-delay:${i*30}ms">
+          <div class="event-date">${d}일</div>
+          <div class="event-name ${cls}">${e.name}${e.isHoliday ? ' 🔴' : ''}</div>
+        </li>`;
+    });
+    document.getElementById('eventList').innerHTML = listHtml;
+  }
+
+  const hCount = events.filter(e=>e.isHoliday).length;
+  const aCount = events.filter(e=>!e.isHoliday).length;
+  document.getElementById('statusLoad').innerHTML =
+    `공휴일 <b>${hCount}</b>건 · 기념일 <b>${aCount}</b>건 로드 완료`;
+}
+
+function init() {
+  curYear  = today.getFullYear();
+  curMonth = today.getMonth() + 1;
+
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    curMonth--;
+    if (curMonth < 1) { curMonth = 12; curYear--; }
+    renderCalendar(curYear, curMonth);
+  });
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    curMonth++;
+    if (curMonth > 12) { curMonth = 1; curYear++; }
+    renderCalendar(curYear, curMonth);
+  });
+
+  renderCalendar(curYear, curMonth);
+}
+
+init();
+</script>
+</body>
+</html>
