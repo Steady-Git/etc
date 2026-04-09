@@ -108,31 +108,32 @@
     /* ════════════════════════════════
        YEAR-MONTH PICKER POPUP
     ════════════════════════════════ */
+    /* Transparent backdrop — just catches outside clicks */
     .picker-backdrop{
       display:none;
       position:fixed;inset:0;
       z-index:300;
-      background:rgba(0,0,0,.35);
-      backdrop-filter:blur(2px);
-      -webkit-backdrop-filter:blur(2px);
     }
     .picker-backdrop.open{display:block;}
 
+    /* Popup lives at <body> level, positioned via JS — NO blur on page */
     .picker-popup{
-      position:absolute;
-      top:calc(100% + 8px);
-      left:50%;transform:translateX(-50%);
+      display:none;
+      position:fixed;
       width:var(--picker-w);
       background:var(--surface);
       border-radius:16px;
-      box-shadow:0 8px 32px rgba(0,0,0,.22);
+      box-shadow:0 8px 40px rgba(0,0,0,.26),0 2px 8px rgba(0,0,0,.1);
       overflow:hidden;
-      z-index:400;
-      animation:popIn .2s cubic-bezier(.34,1.56,.64,1) both;
+      z-index:500;
+    }
+    .picker-popup.open{
+      display:block;
+      animation:popIn .18s cubic-bezier(.34,1.4,.64,1) both;
     }
     @keyframes popIn{
-      from{opacity:0;transform:translateX(-50%) scale(.92);}
-      to  {opacity:1;transform:translateX(-50%) scale(1);}
+      from{opacity:0;transform:scale(.93);}
+      to  {opacity:1;transform:scale(1);}
     }
 
     /* year row inside picker */
@@ -332,9 +333,21 @@
 <body>
 
 <!-- ════════════════════════════
-     PICKER BACKDROP (outside header, fixed)
+     PICKER BACKDROP (transparent, outside click catcher)
 ════════════════════════════ -->
 <div class="picker-backdrop" id="pickerBackdrop"></div>
+
+<!-- ════════════════════════════
+     PICKER POPUP — at body level, positioned by JS
+════════════════════════════ -->
+<div class="picker-popup" id="pickerPopup" role="dialog" aria-label="날짜 선택">
+  <div class="picker-year-row">
+    <button class="picker-year-nav" id="pyPrev" aria-label="이전 연도">&#8592;</button>
+    <span class="picker-year-val" id="pyVal">────</span>
+    <button class="picker-year-nav" id="pyNext" aria-label="다음 연도">&#8594;</button>
+  </div>
+  <div class="picker-months" id="pickerMonths"></div>
+</div>
 
 <!-- ════════════════════════════
      HEADER
@@ -354,16 +367,6 @@
            aria-haspopup="true" aria-expanded="false" aria-label="연월 선택">
         <span id="ymText">──── ──</span>
         <span class="caret">▼</span>
-
-        <!-- Picker popup (inside nav for proper positioning) -->
-        <div class="picker-popup" id="pickerPopup" role="dialog" aria-label="날짜 선택">
-          <div class="picker-year-row">
-            <button class="picker-year-nav" id="pyPrev" aria-label="이전 연도">&#8592;</button>
-            <span class="picker-year-val" id="pyVal">────</span>
-            <button class="picker-year-nav" id="pyNext" aria-label="다음 연도">&#8594;</button>
-          </div>
-          <div class="picker-months" id="pickerMonths"></div>
-        </div>
       </div>
 
       <button class="nav-btn" id="nextBtn" aria-label="다음 달">&#8594;</button>
@@ -615,9 +618,28 @@ function openPicker() {
   pickerOpen = true;
   pickerYear = curYear;
   renderPickerMonths();
+
+  /* Position popup below the ym-label using its screen coords */
+  const lbl    = document.getElementById('ymLabel');
+  const popup  = document.getElementById('pickerPopup');
+  const rect   = lbl.getBoundingClientRect();
+  const pw     = parseInt(getComputedStyle(document.documentElement)
+                   .getPropertyValue('--picker-w'), 10) || 280;
+  const vw     = window.innerWidth;
+  const vh     = window.innerHeight;
+
+  let left = rect.left + rect.width / 2 - pw / 2;   // centered under label
+  left = Math.max(8, Math.min(left, vw - pw - 8));   // clamp to viewport
+
+  let top = rect.bottom + 8;
+  if (top + 260 > vh) top = rect.top - 260 - 8;      // flip up if no room
+
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+
+  popup.classList.add('open');
   document.getElementById('ymLabel').classList.add('open');
   document.getElementById('ymLabel').setAttribute('aria-expanded','true');
-  document.getElementById('pickerPopup').style.display = 'block';
   document.getElementById('pickerBackdrop').classList.add('open');
 }
 
@@ -625,7 +647,7 @@ function closePicker() {
   pickerOpen = false;
   document.getElementById('ymLabel').classList.remove('open');
   document.getElementById('ymLabel').setAttribute('aria-expanded','false');
-  document.getElementById('pickerPopup').style.display = 'none';
+  document.getElementById('pickerPopup').classList.remove('open');
   document.getElementById('pickerBackdrop').classList.remove('open');
 }
 
@@ -642,9 +664,6 @@ function selectMonth(year, month) {
 (function init() {
   curYear  = today.getFullYear();
   curMonth = today.getMonth() + 1;
-
-  /* Hide picker popup initially */
-  document.getElementById('pickerPopup').style.display = 'none';
 
   /* ── Prev / Next ── */
   document.getElementById('prevBtn').onclick = e => {
@@ -663,8 +682,6 @@ function selectMonth(year, month) {
   /* ── YM label → open picker ── */
   const ymLabel = document.getElementById('ymLabel');
   ymLabel.addEventListener('click', e => {
-    // Only open/close if the click is directly on the label, not on the popup inside
-    if (e.target.closest('.picker-popup')) return;
     e.stopPropagation();
     openPicker();
   });
