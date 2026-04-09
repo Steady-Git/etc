@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>중기예보 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ══════════════════════════════════════
+   TOKENS
+══════════════════════════════════════ */
+:root {
+  --bg:      #08090d;
+  --panel:   #10131a;
+  --card:    #141820;
+  --border:  #232b3a;
+  --text:    #dde3ef;
+  --text2:   #7a8ba8;
+  --accent:  #4fb3f6;
+  --warm:    #f5a623;
+  --cold:    #74b9f8;
+  --rain:    #54d4c0;
+  --sun:     #f9d849;
+  --cloud:   #8fa8c8;
+  --r: 14px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;-webkit-text-size-adjust:100%;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Noto Sans KR',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── bg decoration ── */
+body::before{
+  content:'';
+  position:fixed;top:0;left:0;right:0;height:500px;
+  background:radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,179,246,.12) 0%, transparent 70%);
+  pointer-events:none;z-index:0;
+}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ══════════════════════════════════════
+   HEADER
+══════════════════════════════════════ */
+.hd{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,9,13,.85);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:0 20px;
+}
+.hd-inner{
+  max-width:1100px;margin:0 auto;
+  display:flex;align-items:center;gap:16px;
+  height:58px;
+}
+.hd-logo{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.6rem;letter-spacing:3px;
+  color:#fff;white-space:nowrap;flex-shrink:0;
+  line-height:1;
+}
+.hd-logo span{color:var(--accent);}
+.hd-sub{
+  font-family:'DM Mono',monospace;
+  font-size:.58rem;color:var(--text2);
+  letter-spacing:1.5px;text-transform:uppercase;
+  margin-top:2px;white-space:nowrap;
+}
+.hd-tabs{
+  display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;
+}
+.hd-tabs::-webkit-scrollbar{display:none;}
+.tab{
+  flex-shrink:0;padding:6px 14px;border-radius:8px;
+  font-size:.72rem;font-weight:600;letter-spacing:.3px;
+  color:var(--text2);border:none;background:transparent;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab:hover{color:var(--text);background:rgba(79,179,246,.07);}
+.tab.active{color:var(--accent);background:rgba(79,179,246,.13);}
+
+/* ══════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════ */
+.wrap{
+  max-width:1100px;margin:0 auto;
+  padding:24px 16px 60px;
+  position:relative;z-index:1;
+}
+.panel{display:none;}
+.panel.active{display:block;animation:rise .22s ease;}
+@keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+/* ── section head ── */
+.sec-hd{margin-bottom:20px;}
+.sec-hd h2{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.9rem;letter-spacing:3px;color:#fff;line-height:1;
+}
+.sec-hd p{font-size:.7rem;color:var(--text2);margin-top:5px;letter-spacing:.5px;}
+
+/* ── control panel ── */
+.ctrl{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px 20px;
+  margin-bottom:20px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;
+}
+.ctrl-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:160px;}
+.ctrl-label{
+  font-family:'DM Mono',monospace;
+  font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text2);
+}
+select,input[type=text]{
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:'Noto Sans KR',sans-serif;font-size:.84rem;
+  padding:9px 12px;border-radius:8px;
+  outline:none;transition:border-color .15s,background .15s;
+  appearance:none;-webkit-appearance:none;width:100%;
+}
+select:focus,input:focus{border-color:var(--accent);background:rgba(79,179,246,.05);}
+select option{background:#141820;}
+
+.btn{
+  padding:9px 24px;
+  background:var(--accent);color:#08090d;
+  border:none;border-radius:8px;
+  font-family:'Noto Sans KR',sans-serif;font-size:.84rem;font-weight:700;
+  cursor:pointer;transition:all .15s;white-space:nowrap;align-self:flex-end;
+  -webkit-tap-highlight-color:transparent;
+  box-shadow:0 0 20px rgba(79,179,246,.25);
+}
+.btn:hover{background:#7ecbf8;box-shadow:0 0 28px rgba(79,179,246,.4);}
+.btn:active{transform:scale(.97);}
+
+/* ── state ── */
+.state-box{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:56px 20px;
+  display:flex;flex-direction:column;align-items:center;
+  gap:12px;color:var(--text2);font-size:.84rem;text-align:center;
+}
+.state-box .ico{font-size:2.6rem;}
+.spinner{
+  width:26px;height:26px;
+  border:2.5px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.err{color:#f87171;font-size:.8rem;line-height:1.7;}
+
+/* ══════════════════════════════════════
+   OVERVIEW CARD (중기전망)
+══════════════════════════════════════ */
+.overview-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:24px 26px;
+  margin-bottom:20px;
+  position:relative;overflow:hidden;
+}
+.overview-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--rain),var(--sun));
+}
+.ov-meta{
+  font-family:'DM Mono',monospace;font-size:.65rem;
+  color:var(--text2);letter-spacing:1px;margin-bottom:10px;
+}
+.ov-text{
+  font-size:.9rem;line-height:1.85;color:var(--text);
+  border-left:3px solid var(--accent);
+  padding-left:16px;
+}
+
+/* ══════════════════════════════════════
+   FORECAST TIMELINE (육상·기온·해상)
+══════════════════════════════════════ */
+.timeline-wrap{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:10px;
+}
+.day-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 12px;
+  text-align:center;
+  transition:border-color .18s,transform .18s;
+  animation:rise .3s ease both;
+}
+.day-card:hover{border-color:rgba(79,179,246,.4);transform:translateY(-2px);}
+
+.day-label{
+  font-family:'DM Mono',monospace;
+  font-size:.62rem;letter-spacing:1px;color:var(--text2);margin-bottom:8px;
+}
+.day-date{font-size:.72rem;font-weight:700;color:var(--text);margin-bottom:10px;}
+.day-icon{font-size:1.8rem;margin-bottom:6px;line-height:1;}
+.day-sky{font-size:.65rem;color:var(--cloud);margin-bottom:8px;line-height:1.4;}
+
+/* temperature bar */
+.temp-row{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin-bottom:6px;
+}
+.temp-hi{
+  font-family:'DM Mono',monospace;font-size:.95rem;font-weight:500;
+  color:#ff8a75;
+}
+.temp-lo{
+  font-family:'DM Mono',monospace;font-size:.95rem;font-weight:500;
+  color:var(--cold);
+}
+.temp-sep{font-size:.7rem;color:var(--text2);}
+
+.rain-chip{
+  display:inline-block;
+  font-size:.6rem;font-weight:600;
+  padding:2px 7px;border-radius:20px;
+  background:rgba(84,212,192,.12);color:var(--rain);
+  letter-spacing:.3px;
+}
+.rain-chip.zero{background:rgba(255,255,255,.05);color:var(--text2);}
+
+/* wave info */
+.wave-info{margin-top:8px;font-size:.66rem;color:var(--text2);line-height:1.7;}
+.wave-val{color:var(--accent);font-weight:600;}
+
+/* ══════════════════════════════════════
+   REGION SELECTOR CHIPS
+══════════════════════════════════════ */
+.region-grid{
+  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;
+}
+.r-chip{
+  padding:5px 13px;border-radius:20px;
+  font-size:.7rem;font-weight:500;
+  border:1px solid var(--border);background:transparent;color:var(--text2);
+  cursor:pointer;transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.r-chip:hover{border-color:var(--accent);color:var(--accent);}
+.r-chip.sel{background:var(--accent);border-color:var(--accent);color:#08090d;font-weight:700;}
+
+/* ══════════════════════════════════════
+   SUMMARY STRIP
+══════════════════════════════════════ */
+.strip{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 18px;
+  display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;
+  align-items:center;
+}
+.strip-item{display:flex;flex-direction:column;gap:2px;}
+.strip-key{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--text2);letter-spacing:1px;text-transform:uppercase;}
+.strip-val{font-size:.88rem;font-weight:600;}
+
+/* ══════════════════════════════════════
+   OCEAN PANEL
+══════════════════════════════════════ */
+.ocean-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:10px;
+}
+.ocean-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:16px 14px;
+  animation:rise .3s ease both;
+  transition:border-color .18s;
+}
+.ocean-card:hover{border-color:rgba(79,179,246,.35);}
+.oc-date{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--text2);margin-bottom:6px;letter-spacing:.5px;}
+.oc-label{font-size:.8rem;font-weight:600;margin-bottom:10px;}
+.oc-row{display:flex;justify-content:space-between;align-items:center;margin-top:5px;}
+.oc-key{font-size:.65rem;color:var(--text2);}
+.oc-val{font-family:'DM Mono',monospace;font-size:.78rem;font-weight:500;color:var(--accent);}
+
+@media(max-width:560px){
+  .hd-logo{font-size:1.3rem;}
+  .timeline-wrap{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));}
+  .ocean-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="hd">
+  <div class="hd-inner">
+    <div>
+      <div class="hd-logo">FORE<span>CAST</span></div>
+      <div class="hd-sub">기상청 중기예보 · MidFcstInfoService</div>
+    </div>
+    <div class="hd-tabs" id="tabBar">
+      <button class="tab active" data-tab="outlook">📋 중기전망</button>
+      <button class="tab" data-tab="land">🌤 육상예보</button>
+      <button class="tab" data-tab="temp">🌡 기온예보</button>
+      <button class="tab" data-tab="ocean">🌊 해상예보</button>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="wrap">
+
+  <!-- ① 중기전망 -->
+  <div class="panel active" id="panel-outlook">
+    <div class="sec-hd">
+      <h2>중기전망조회</h2>
+      <p>getMidFcst — 전국 6~10일 날씨 종합 전망</p>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-group">
+        <div class="ctrl-label">예보 구역 코드</div>
+        <select id="ot-regId">
+          <option value="11B00000">서울·경기도 (11B)</option>
+          <option value="11D10000">강원도 영서 (11D1)</option>
+          <option value="11D20000">강원도 영동 (11D2)</option>
+          <option value="11C20000">충청북도 (11C2)</option>
+          <option value="11C10000">충청남도 (11C1)</option>
+          <option value="11F10000">전라북도 (11F1)</option>
+          <option value="11F20000">전라남도 (11F2)</option>
+          <option value="11H10000">경상북도 (11H1)</option>
+          <option value="11H20000">경상남도 (11H2)</option>
+          <option value="11G00000">제주도 (11G)</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">발표 시각 (tmFc)</div>
+        <input type="text" id="ot-tmfc" placeholder="예: 202504090600"/>
+      </div>
+      <button class="btn" id="ot-btn">조회</button>
+    </div>
+    <div id="ot-result">
+      <div class="state-box"><div class="ico">🌏</div><span>구역을 선택하고 조회하세요</span></div>
+    </div>
+  </div>
+
+  <!-- ② 중기육상예보 -->
+  <div class="panel" id="panel-land">
+    <div class="sec-hd">
+      <h2>중기육상예보조회</h2>
+      <p>getMidLandFcst — 지역별 3~10일 날씨·강수확률</p>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-group">
+        <div class="ctrl-label">예보 구역</div>
+        <select id="land-regId">
+          <option value="11B00000">서울·인천·경기도</option>
+          <option value="11D10000">강원도 영서</option>
+          <option value="11D20000">강원도 영동</option>
+          <option value="11C20000">충청북도</option>
+          <option value="11C10000">충청남도·세종·대전</option>
+          <option value="11F10000">전라북도</option>
+          <option value="11F20000">전라남도·광주</option>
+          <option value="11H10000">경상북도·대구</option>
+          <option value="11H20000">경상남도·부산·울산</option>
+          <option value="11G00000">제주도</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">발표 시각 (tmFc)</div>
+        <input type="text" id="land-tmfc" placeholder="예: 202504090600"/>
+      </div>
+      <button class="btn" id="land-btn">조회</button>
+    </div>
+    <div id="land-result">
+      <div class="state-box"><div class="ico">🌤</div><span>지역을 선택하고 조회하세요</span></div>
+    </div>
+  </div>
+
+  <!-- ③ 중기기온예보 -->
+  <div class="panel" id="panel-temp">
+    <div class="sec-hd">
+      <h2>중기기온조회</h2>
+      <p>getMidTa — 지역별 3~10일 최저·최고 기온 예보</p>
+    </div>
+
+    <!-- region quick-select chips -->
+    <div class="region-grid" id="tempRegions"></div>
+
+    <div class="ctrl">
+      <div class="ctrl-group">
+        <div class="ctrl-label">기온 예보 구역 코드</div>
+        <input type="text" id="temp-regId" placeholder="예: 11B10101 (서울)"/>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">발표 시각 (tmFc)</div>
+        <input type="text" id="temp-tmfc" placeholder="예: 202504090600"/>
+      </div>
+      <button class="btn" id="temp-btn">조회</button>
+    </div>
+    <div id="temp-result">
+      <div class="state-box"><div class="ico">🌡</div><span>구역 코드를 입력하거나 위 버튼으로 빠르게 선택하세요</span></div>
+    </div>
+  </div>
+
+  <!-- ④ 중기해상예보 -->
+  <div class="panel" id="panel-ocean">
+    <div class="sec-hd">
+      <h2>중기해상예보조회</h2>
+      <p>getMidSeaFcst — 해역별 3~10일 파고·날씨 예보</p>
+    </div>
+    <div class="ctrl">
+      <div class="ctrl-group">
+        <div class="ctrl-label">해역 선택</div>
+        <select id="ocean-regId">
+          <option value="12A00000">서해중부해상</option>
+          <option value="12B00000">서해남부해상</option>
+          <option value="12C00000">남해서부해상</option>
+          <option value="12D00000">남해동부해상</option>
+          <option value="12E00000">동해남부해상</option>
+          <option value="12F00000">동해중부해상</option>
+          <option value="12G00000">동해북부해상</option>
+          <option value="12H00000">제주도 먼바다</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">발표 시각 (tmFc)</div>
+        <input type="text" id="ocean-tmfc" placeholder="예: 202504090600"/>
+      </div>
+      <button class="btn" id="ocean-btn">조회</button>
+    </div>
+    <div id="ocean-result">
+      <div class="state-box"><div class="ico">🌊</div><span>해역을 선택하고 조회하세요</span></div>
+    </div>
+  </div>
+
+</div><!-- wrap -->
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const API_KEY = 'dc8294cd0177c5d51b45be29652fb691c4b18e055f22c87b0967ca1a78c7df0a';
+const BASE    = 'https://apis.data.go.kr/1360000/MidFcstInfoService';
+
+/* ── 기온 예보 구역 코드 주요 지점 ── */
+const TEMP_REGIONS = [
+  {name:'서울',    code:'11B10101'},
+  {name:'인천',    code:'11B20201'},
+  {name:'수원',    code:'11B20601'},
+  {name:'춘천',    code:'11D10301'},
+  {name:'강릉',    code:'11D20501'},
+  {name:'청주',    code:'11C20401'},
+  {name:'대전',    code:'11C10301'},
+  {name:'전주',    code:'11F10201'},
+  {name:'광주',    code:'11F20501'},
+  {name:'대구',    code:'11H10701'},
+  {name:'부산',    code:'11H20201'},
+  {name:'울산',    code:'11H20101'},
+  {name:'창원',    code:'11H20301'},
+  {name:'제주',    code:'11G00201'},
+];
+
+/* ── default tmFc: latest 06:00 or 18:00 ── */
+function defaultTmfc() {
+  const now   = new Date();
+  const y     = now.getFullYear();
+  const m     = String(now.getMonth()+1).padStart(2,'0');
+  const d     = String(now.getDate()).padStart(2,'0');
+  const h     = now.getHours();
+  const hhmm  = h >= 18 ? '1800' : '0600';
+  // if before 06:00, use yesterday 18:00
+  if (h < 6) {
+    const yest = new Date(now); yest.setDate(yest.getDate()-1);
+    const yy = yest.getFullYear(), ym = String(yest.getMonth()+1).padStart(2,'0'),
+          yd = String(yest.getDate()).padStart(2,'0');
+    return `${yy}${ym}${yd}1800`;
+  }
+  return `${y}${m}${d}${hhmm}`;
+}
+
+const DEF_TMFC = defaultTmfc();
+
+/* ── pre-fill all tmFc fields ── */
+['ot-tmfc','land-tmfc','temp-tmfc','ocean-tmfc'].forEach(id => {
+  document.getElementById(id).value = DEF_TMFC;
+});
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function loading(id) {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="spinner"></div><span>데이터를 불러오는 중…</span></div>`;
+}
+
+function errBox(id, msg) {
+  document.getElementById(id).innerHTML = `
+    <div class="state-box">
+      <div class="ico">⚠️</div>
+      <div class="err">${msg}<br>
+        <small style="color:var(--text2);font-size:.68rem">
+          발표 시각(tmFc)을 확인하세요.<br>
+          CORS 이슈 시 로컬 서버에서 실행하거나 CORS 확장을 사용하세요.
+        </small>
+      </div>
+    </div>`;
+}
+
+async function apiFetch(op, params) {
+  const qs = Object.entries(params)
+    .filter(([,v]) => v !== '')
+    .map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  const url = `${BASE}/${op}?serviceKey=${API_KEY}&dataType=JSON&${qs}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const items = json?.response?.body?.items?.item;
+  if (!items) throw new Error(json?.response?.header?.resultMsg || '데이터 없음');
+  return Array.isArray(items) ? items : [items];
+}
+
+/* sky code → emoji + label */
+function skyEmoji(code) {
+  const map = {
+    '맑음':'☀️','구름많음':'⛅','구름많고 비':'🌧','구름많고 눈':'🌨',
+    '구름많고 비/눈':'🌧','흐림':'☁️','흐리고 비':'🌧','흐리고 눈':'🌨',
+    '흐리고 비/눈':'🌧','흐리고 소나기':'⛈'
+  };
+  if (!code) return {icon:'❓', label:'—'};
+  const icon = map[code] || '🌥';
+  return {icon, label:code};
+}
+
+function rainClass(p) {
+  const n = parseInt(p||0);
+  return n > 0 ? '' : 'zero';
+}
+
+/* date string YYYYMMDD → MM/DD(요일) */
+function fmtDate(s) {
+  if (!s || s.length < 8) return s;
+  const days = ['일','월','화','수','목','금','토'];
+  const d = new Date(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8));
+  return `${s.slice(4,6)}/${s.slice(6,8)}(${days[d.getDay()]})`;
+}
+
+/* ════════════════════════════════════════
+   TAB
+════════════════════════════════════════ */
+document.getElementById('tabBar').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+});
+
+/* ════════════════════════════════════════
+   TEMP REGION CHIPS
+════════════════════════════════════════ */
+document.getElementById('tempRegions').innerHTML = TEMP_REGIONS.map(r =>
+  `<button class="r-chip" data-code="${r.code}">${r.name}</button>`
+).join('');
+
+document.getElementById('tempRegions').addEventListener('click', e => {
+  const chip = e.target.closest('.r-chip');
+  if (!chip) return;
+  document.querySelectorAll('.r-chip').forEach(c => c.classList.remove('sel'));
+  chip.classList.add('sel');
+  document.getElementById('temp-regId').value = chip.dataset.code;
+});
+
+/* ════════════════════════════════════════
+   ① 중기전망
+════════════════════════════════════════ */
+document.getElementById('ot-btn').onclick = async () => {
+  const regId = document.getElementById('ot-regId').value;
+  const tmFc  = document.getElementById('ot-tmfc').value.trim();
+  if (!tmFc) { alert('발표 시각을 입력하세요'); return; }
+  loading('ot-result');
+  try {
+    const items = await apiFetch('getMidFcst', { regId, tmFc });
+    if (!items.length) { document.getElementById('ot-result').innerHTML = `<div class="state-box"><div class="ico">📭</div><span>데이터가 없습니다</span></div>`; return; }
+
+    const html = items.map(it => `
+      <div class="overview-card">
+        <div class="ov-meta">발표: ${it.tmFc || tmFc} &nbsp;|&nbsp; 구역: ${it.regId || regId}</div>
+        <div class="ov-text">${(it.wf || '예보 내용이 없습니다').replace(/\n/g,'<br>')}</div>
+      </div>`).join('');
+    document.getElementById('ot-result').innerHTML = html;
+  } catch(e) { errBox('ot-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ② 중기육상예보
+════════════════════════════════════════ */
+document.getElementById('land-btn').onclick = async () => {
+  const regId = document.getElementById('land-regId').value;
+  const tmFc  = document.getElementById('land-tmfc').value.trim();
+  if (!tmFc) { alert('발표 시각을 입력하세요'); return; }
+  loading('land-result');
+  try {
+    const items = await apiFetch('getMidLandFcst', { regId, tmFc });
+    if (!items.length) { document.getElementById('land-result').innerHTML = `<div class="state-box"><div class="ico">📭</div><span>데이터가 없습니다</span></div>`; return; }
+
+    const it = items[0];
+
+    // Days 3~10, each has AM/PM
+    const days = [];
+    for (let n = 3; n <= 10; n++) {
+      // 3~7: wfAm/wfPm; 8~10: wf only
+      const baseDate = new Date(
+        +tmFc.slice(0,4), +tmFc.slice(4,6)-1, +tmFc.slice(6,8)
+      );
+      baseDate.setDate(baseDate.getDate() + n);
+      const yy = baseDate.getFullYear();
+      const mm = String(baseDate.getMonth()+1).padStart(2,'0');
+      const dd = String(baseDate.getDate()).padStart(2,'0');
+      const dateStr = `${yy}${mm}${dd}`;
+
+      const amKey = `wf${n}Am`, pmKey = `wf${n}Pm`, wfKey = `wf${n}`;
+      const rnAmKey = `rnSt${n}Am`, rnPmKey = `rnSt${n}Pm`, rnKey = `rnSt${n}`;
+
+      const wfAm = it[amKey] || it[wfKey] || '';
+      const wfPm = it[pmKey] || '';
+      const rnAm = it[rnAmKey] || it[rnKey] || '';
+      const rnPm = it[rnPmKey] || '';
+
+      const sky   = skyEmoji(wfAm || wfPm);
+      const skyPm = wfPm ? skyEmoji(wfPm) : null;
+
+      days.push({ n, dateStr, wfAm, wfPm, rnAm, rnPm, sky, skyPm });
+    }
+
+    const strip = `<div class="strip">
+      <div class="strip-item"><div class="strip-key">발표</div><div class="strip-val" style="font-size:.8rem;font-family:'DM Mono',monospace">${tmFc}</div></div>
+      <div class="strip-item"><div class="strip-key">구역</div><div class="strip-val" style="font-size:.8rem">${document.getElementById('land-regId').options[document.getElementById('land-regId').selectedIndex].text}</div></div>
+      <div class="strip-item"><div class="strip-key">예보 기간</div><div class="strip-val" style="font-size:.8rem">${fmtDate(days[0].dateStr)} ~ ${fmtDate(days[days.length-1].dateStr)}</div></div>
+    </div>`;
+
+    const cards = `<div class="timeline-wrap">
+      ${days.map((d, i) => {
+        const hasAmPm = d.wfAm && d.wfPm;
+        return `<div class="day-card" style="animation-delay:${i*35}ms">
+          <div class="day-label">D+${d.n}</div>
+          <div class="day-date">${fmtDate(d.dateStr)}</div>
+          <div class="day-icon">${d.sky.icon}</div>
+          <div class="day-sky">
+            ${hasAmPm
+              ? `오전 ${d.wfAm}<br>오후 ${d.wfPm}`
+              : d.wfAm || d.wfPm || '—'}
+          </div>
+          ${d.rnAm !== '' ? `
+          <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
+            ${d.rnAm !== '' ? `<span class="rain-chip ${rainClass(d.rnAm)}">오전 ${d.rnAm}%</span>` : ''}
+            ${d.rnPm !== '' ? `<span class="rain-chip ${rainClass(d.rnPm)}">오후 ${d.rnPm}%</span>` : ''}
+          </div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
+
+    document.getElementById('land-result').innerHTML = strip + cards;
+  } catch(e) { errBox('land-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ③ 중기기온
+════════════════════════════════════════ */
+document.getElementById('temp-btn').onclick = async () => {
+  const regId = document.getElementById('temp-regId').value.trim();
+  const tmFc  = document.getElementById('temp-tmfc').value.trim();
+  if (!regId) { alert('구역 코드를 입력하거나 위 버튼으로 선택하세요'); return; }
+  if (!tmFc)  { alert('발표 시각을 입력하세요'); return; }
+  loading('temp-result');
+  try {
+    const items = await apiFetch('getMidTa', { regId, tmFc });
+    if (!items.length) { document.getElementById('temp-result').innerHTML = `<div class="state-box"><div class="ico">📭</div><span>데이터가 없습니다</span></div>`; return; }
+
+    const it = items[0];
+    const selChip = document.querySelector('.r-chip.sel');
+    const regionName = selChip ? selChip.textContent : regId;
+
+    const days = [];
+    for (let n = 3; n <= 10; n++) {
+      const baseDate = new Date(+tmFc.slice(0,4), +tmFc.slice(4,6)-1, +tmFc.slice(6,8));
+      baseDate.setDate(baseDate.getDate() + n);
+      const yy = baseDate.getFullYear(), mm = String(baseDate.getMonth()+1).padStart(2,'0'), dd = String(baseDate.getDate()).padStart(2,'0');
+      const hi = it[`taMax${n}`] ?? it[`taMax${n}High`] ?? '—';
+      const lo = it[`taMin${n}`] ?? it[`taMin${n}Low`]  ?? '—';
+      days.push({ n, dateStr:`${yy}${mm}${dd}`, hi, lo });
+    }
+
+    // min/max for gradient bar
+    const vals = days.filter(d => d.hi !== '—' && d.lo !== '—');
+    const absMax = Math.max(...vals.map(d => +d.hi));
+    const absMin = Math.min(...vals.map(d => +d.lo));
+
+    const strip = `<div class="strip">
+      <div class="strip-item"><div class="strip-key">지점</div><div class="strip-val">${regionName}</div></div>
+      <div class="strip-item"><div class="strip-key">코드</div><div class="strip-val" style="font-family:'DM Mono',monospace;font-size:.8rem">${regId}</div></div>
+      <div class="strip-item"><div class="strip-key">최고</div><div class="strip-val" style="color:#ff8a75">${absMax}°C</div></div>
+      <div class="strip-item"><div class="strip-key">최저</div><div class="strip-val" style="color:var(--cold)">${absMin}°C</div></div>
+    </div>`;
+
+    const cards = `<div class="timeline-wrap">
+      ${days.map((d, i) => {
+        const hiN = +d.hi, loN = +d.lo;
+        // temp emoji hint
+        const icon = hiN >= 30 ? '🥵' : hiN >= 20 ? '😊' : hiN >= 10 ? '🧥' : '🥶';
+        return `<div class="day-card" style="animation-delay:${i*35}ms">
+          <div class="day-label">D+${d.n}</div>
+          <div class="day-date">${fmtDate(d.dateStr)}</div>
+          <div class="day-icon">${icon}</div>
+          <div class="temp-row">
+            <span class="temp-hi">${d.hi}°</span>
+            <span class="temp-sep">/</span>
+            <span class="temp-lo">${d.lo}°</span>
+          </div>
+          <div style="margin-top:6px;height:4px;border-radius:4px;background:var(--border);overflow:hidden">
+            ${d.hi !== '—' && d.lo !== '—' ? `
+            <div style="height:100%;border-radius:4px;
+              margin-left:${((loN-absMin)/(absMax-absMin||1)*100).toFixed(1)}%;
+              width:${((hiN-loN)/(absMax-absMin||1)*100).toFixed(1)}%;
+              background:linear-gradient(90deg,var(--cold),#ff8a75);"></div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+    document.getElementById('temp-result').innerHTML = strip + cards;
+  } catch(e) { errBox('temp-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ④ 중기해상예보
+════════════════════════════════════════ */
+document.getElementById('ocean-btn').onclick = async () => {
+  const regId = document.getElementById('ocean-regId').value;
+  const tmFc  = document.getElementById('ocean-tmfc').value.trim();
+  if (!tmFc) { alert('발표 시각을 입력하세요'); return; }
+  loading('ocean-result');
+  try {
+    const items = await apiFetch('getMidSeaFcst', { regId, tmFc });
+    if (!items.length) { document.getElementById('ocean-result').innerHTML = `<div class="state-box"><div class="ico">📭</div><span>데이터가 없습니다</span></div>`; return; }
+
+    const it = items[0];
+    const selLabel = document.getElementById('ocean-regId').options[document.getElementById('ocean-regId').selectedIndex].text;
+
+    // Parse day cards: wf3Am/wf3Pm, wh3AAm/wh3APm (파고)
+    const cards = [];
+    for (let n = 3; n <= 10; n++) {
+      const baseDate = new Date(+tmFc.slice(0,4), +tmFc.slice(4,6)-1, +tmFc.slice(6,8));
+      baseDate.setDate(baseDate.getDate() + n);
+      const yy = baseDate.getFullYear(), mm = String(baseDate.getMonth()+1).padStart(2,'0'), dd = String(baseDate.getDate()).padStart(2,'0');
+
+      const wfAm = it[`wf${n}Am`] || it[`wf${n}`] || '—';
+      const wfPm = it[`wf${n}Pm`] || '';
+      const whAm = it[`wh${n}AAm`] || it[`wh${n}A`] || '—';
+      const whPm = it[`wh${n}APm`] || '';
+      const sky  = skyEmoji(wfAm);
+
+      cards.push(`<div class="ocean-card" style="animation-delay:${(n-3)*35}ms">
+        <div class="oc-date">D+${n} ${fmtDate(`${yy}${mm}${dd}`)}</div>
+        <div class="oc-label">${sky.icon} ${wfAm}${wfPm ? ` / ${wfPm}` : ''}</div>
+        <div class="oc-row">
+          <span class="oc-key">오전 파고</span>
+          <span class="oc-val">${whAm}m</span>
+        </div>
+        ${whPm ? `<div class="oc-row"><span class="oc-key">오후 파고</span><span class="oc-val">${whPm}m</span></div>` : ''}
+      </div>`);
+    }
+
+    const strip = `<div class="strip">
+      <div class="strip-item"><div class="strip-key">해역</div><div class="strip-val">${selLabel}</div></div>
+      <div class="strip-item"><div class="strip-key">발표</div><div class="strip-val" style="font-family:'DM Mono',monospace;font-size:.8rem">${tmFc}</div></div>
+    </div>`;
+
+    document.getElementById('ocean-result').innerHTML =
+      strip + `<div class="ocean-grid">${cards.join('')}</div>`;
+  } catch(e) { errBox('ocean-result', e.message); }
+};
+</script>
+</body>
+</html>
