@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>대기오염 정보 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #0d1117;
+  --panel:    #161b22;
+  --panel2:   #1c2330;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --text2:    #8b949e;
+  --accent:   #58a6ff;
+
+  /* AQI grades */
+  --g1:#3fb950; /* 좋음 */
+  --g2:#d29922; /* 보통 */
+  --g3:#f78166; /* 나쁨 */
+  --g4:#ff6e6e; /* 매우나쁨 */
+  --g5:#ff4444; /* 위험 */
+
+  --r:8px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'IBM Plex Sans KR',sans-serif;
+  min-height:100vh;
+}
+
+/* ── scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ══════════════════════════
+   HEADER
+══════════════════════════ */
+.site-header{
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  padding:0 20px;
+  position:sticky;top:0;z-index:100;
+}
+.header-inner{
+  max-width:1100px;margin:0 auto;
+  display:flex;align-items:center;gap:16px;
+  height:56px;
+}
+.logo{
+  display:flex;align-items:center;gap:10px;
+  font-size:1.05rem;font-weight:700;letter-spacing:-.3px;
+  white-space:nowrap;
+}
+.logo-icon{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,#58a6ff,#3fb950);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;flex-shrink:0;
+}
+.logo-sub{font-size:.65rem;color:var(--text2);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;margin-top:1px;}
+
+.tab-bar{
+  display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;
+  flex:1;margin-left:8px;
+}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab{
+  flex-shrink:0;padding:6px 14px;border-radius:6px;
+  font-size:.72rem;font-weight:500;color:var(--text2);
+  cursor:pointer;border:none;background:transparent;
+  transition:all .15s;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab:hover{background:rgba(88,166,255,.08);color:var(--accent);}
+.tab.active{background:rgba(88,166,255,.15);color:var(--accent);}
+
+/* ══════════════════════════
+   MAIN
+══════════════════════════ */
+.main{max-width:1100px;margin:0 auto;padding:20px 16px 48px;}
+
+/* panels */
+.panel{display:none;}
+.panel.active{display:block;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ── section header ── */
+.sec-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;
+  margin-bottom:16px;
+}
+.sec-title{font-size:1.1rem;font-weight:700;letter-spacing:-.3px;}
+.sec-sub{font-size:.7rem;color:var(--text2);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;margin-top:3px;}
+
+/* ── controls ── */
+.ctrl-row{
+  display:flex;gap:8px;flex-wrap:wrap;
+  margin-bottom:16px;
+}
+.ctrl-group{display:flex;flex-direction:column;gap:4px;min-width:140px;}
+.ctrl-label{font-size:.65rem;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;}
+select,input[type=text],input[type=date]{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:'IBM Plex Sans KR',sans-serif;
+  font-size:.82rem;
+  padding:8px 10px;
+  border-radius:6px;
+  outline:none;
+  transition:border-color .15s;
+  appearance:none;
+  -webkit-appearance:none;
+}
+select:focus,input:focus{border-color:var(--accent);}
+select option{background:var(--panel2);}
+
+.btn{
+  padding:8px 18px;
+  background:var(--accent);
+  color:#0d1117;
+  border:none;border-radius:6px;
+  font-family:'IBM Plex Sans KR',sans-serif;
+  font-size:.82rem;font-weight:600;
+  cursor:pointer;transition:opacity .15s;
+  align-self:flex-end;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:hover{opacity:.85;}
+.btn:active{opacity:.7;}
+.btn-ghost{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text2);
+  padding:8px 14px;
+}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── result area ── */
+.result-area{min-height:80px;}
+
+/* ── state box ── */
+.state-box{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;padding:48px 20px;color:var(--text2);font-size:.82rem;text-align:center;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+}
+.spinner{
+  width:22px;height:22px;
+  border:2.5px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.err-icon{font-size:2rem;}
+.err-msg{color:#f78166;font-size:.78rem;line-height:1.6;}
+
+/* ── cards grid ── */
+.cards-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:12px;
+}
+.card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:16px;
+  transition:border-color .2s;
+}
+.card:hover{border-color:rgba(88,166,255,.35);}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.card-title{font-size:.88rem;font-weight:600;}
+.card-time{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--text2);}
+
+/* grade badge */
+.grade-badge{
+  padding:3px 10px;border-radius:20px;
+  font-size:.68rem;font-weight:700;letter-spacing:.5px;
+  flex-shrink:0;
+}
+.g1{background:rgba(63,185,80,.15);color:var(--g1);}
+.g2{background:rgba(210,153,34,.15);color:var(--g2);}
+.g3{background:rgba(247,129,102,.15);color:var(--g3);}
+.g4{background:rgba(255,110,110,.15);color:var(--g4);}
+.g5{background:rgba(255,68,68,.15);color:var(--g5);}
+.gx{background:rgba(139,148,158,.1);color:var(--text2);}
+
+/* metrics row */
+.metrics{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.metric{
+  flex:1;min-width:70px;
+  background:var(--panel2);border-radius:6px;
+  padding:8px 10px;
+}
+.metric-label{font-size:.6rem;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px;}
+.metric-val{font-family:'IBM Plex Mono',monospace;font-size:.95rem;font-weight:500;}
+.metric-val.g1{color:var(--g1);}
+.metric-val.g2{color:var(--g2);}
+.metric-val.g3{color:var(--g3);}
+.metric-val.g4{color:var(--g4);}
+.metric-val.g5{color:var(--g5);}
+
+/* table */
+.data-table{
+  width:100%;border-collapse:collapse;
+  font-size:.78rem;
+}
+.data-table th{
+  background:var(--panel2);
+  padding:9px 12px;text-align:left;
+  font-size:.68rem;font-weight:600;letter-spacing:.5px;
+  color:var(--text2);text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+.data-table td{
+  padding:9px 12px;
+  border-bottom:1px solid rgba(48,54,61,.5);
+  vertical-align:middle;
+}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:rgba(88,166,255,.03);}
+.tbl-wrap{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;overflow-x:auto;
+}
+
+/* forecast card */
+.fc-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:18px;margin-bottom:12px;
+}
+.fc-date{
+  font-family:'IBM Plex Mono',monospace;font-size:.72rem;
+  color:var(--text2);margin-bottom:8px;
+}
+.fc-text{font-size:.85rem;line-height:1.7;color:var(--text);}
+.fc-regions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.fc-region{
+  font-size:.68rem;padding:3px 10px;border-radius:20px;
+  background:var(--panel2);border:1px solid var(--border);color:var(--text2);
+}
+
+/* info chips */
+.chip{
+  display:inline-block;padding:2px 8px;border-radius:20px;
+  font-size:.65rem;font-weight:500;
+  background:var(--panel2);border:1px solid var(--border);color:var(--text2);
+  white-space:nowrap;
+}
+
+/* summary bar */
+.summary-bar{
+  display:flex;gap:12px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:16px;
+}
+.sum-item{display:flex;flex-direction:column;gap:2px;}
+.sum-key{font-size:.6rem;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.sum-val{font-family:'IBM Plex Mono',monospace;font-size:.9rem;font-weight:500;}
+
+/* mobile */
+@media(max-width:600px){
+  .header-inner{gap:8px;}
+  .logo-text{display:none;}
+  .tab{padding:6px 10px;font-size:.7rem;}
+  .cards-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🌬</div>
+      <div>
+        <div class="logo-text">대기오염 정보 조회</div>
+        <div class="logo-sub">한국환경공단 에어코리아</div>
+      </div>
+    </div>
+    <div class="tab-bar" id="tabBar">
+      <button class="tab active" data-tab="forecast">대기질 예보통보</button>
+      <button class="tab" data-tab="pm25">초미세먼지 주간예보</button>
+      <button class="tab" data-tab="station">측정소별 실시간</button>
+      <button class="tab" data-tab="badstations">나쁨 이상 측정소</button>
+      <button class="tab" data-tab="sido">시도별 실시간</button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ══════════════════════════
+       ① 대기질 예보통보 조회
+  ══════════════════════════ -->
+  <div class="panel active" id="panel-forecast">
+    <div class="sec-head">
+      <div>
+        <div class="sec-title">대기질 예보통보 조회</div>
+        <div class="sec-sub">getMinuDustFrcstDspth · 일별 대기질 예보 정보</div>
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-group">
+        <div class="ctrl-label">조회 날짜</div>
+        <input type="date" id="fc-date"/>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">예보 구분</div>
+        <select id="fc-inform">
+          <option value="PM10">미세먼지 (PM10)</option>
+          <option value="PM25">초미세먼지 (PM2.5)</option>
+          <option value="O3">오존 (O3)</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">응답형식</div>
+        <select id="fc-type">
+          <option value="json">JSON</option>
+          <option value="xml">XML</option>
+        </select>
+      </div>
+      <button class="btn" id="fc-btn">조회</button>
+    </div>
+    <div class="result-area" id="fc-result">
+      <div class="state-box">🌤 날짜와 예보 구분을 선택하고 조회하세요</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       ② 초미세먼지 주간예보 조회
+  ══════════════════════════ -->
+  <div class="panel" id="panel-pm25">
+    <div class="sec-head">
+      <div>
+        <div class="sec-title">초미세먼지 주간예보 조회</div>
+        <div class="sec-sub">getMinuDustWeekFrcstDspth · PM2.5 주간 예보</div>
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-group">
+        <div class="ctrl-label">조회 날짜</div>
+        <input type="date" id="pm25-date"/>
+      </div>
+      <button class="btn" id="pm25-btn">조회</button>
+    </div>
+    <div class="result-area" id="pm25-result">
+      <div class="state-box">🗓 날짜를 선택하고 조회하세요</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       ③ 측정소별 실시간 측정정보
+  ══════════════════════════ -->
+  <div class="panel" id="panel-station">
+    <div class="sec-head">
+      <div>
+        <div class="sec-title">측정소별 실시간 측정정보 조회</div>
+        <div class="sec-sub">getMsrstnAcctoRltmMesureDnsty · 측정소 이름으로 조회</div>
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-group" style="flex:1;min-width:160px;">
+        <div class="ctrl-label">측정소 이름</div>
+        <input type="text" id="st-name" placeholder="예: 종로구, 강남구, 수원" value="종로구"/>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">데이터 기간</div>
+        <select id="st-term">
+          <option value="DAILY">일간 (Daily)</option>
+          <option value="MONTH">월간 (Monthly)</option>
+          <option value="3MONTH">3개월</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">조회 건수</div>
+        <select id="st-rows">
+          <option value="10">10건</option>
+          <option value="20">20건</option>
+          <option value="50">50건</option>
+        </select>
+      </div>
+      <button class="btn" id="st-btn">조회</button>
+    </div>
+    <div class="result-area" id="st-result">
+      <div class="state-box">🏭 측정소 이름을 입력하고 조회하세요</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       ④ 통합대기환경지수 나쁨 이상 측정소
+  ══════════════════════════ -->
+  <div class="panel" id="panel-badstations">
+    <div class="sec-head">
+      <div>
+        <div class="sec-title">통합대기환경지수 나쁨 이상 측정소 목록</div>
+        <div class="sec-sub">getUnityAirEnvrnIdexSnstiveAboveMsrstn · 나쁨 이상 지점</div>
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-group">
+        <div class="ctrl-label">조회 건수</div>
+        <select id="bad-rows">
+          <option value="100">100건</option>
+          <option value="200">200건</option>
+          <option value="500">500건</option>
+        </select>
+      </div>
+      <button class="btn" id="bad-btn">조회</button>
+    </div>
+    <div class="result-area" id="bad-result">
+      <div class="state-box">⚠ 조회 버튼을 눌러 나쁨 이상 측정소를 확인하세요</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       ⑤ 시도별 실시간 측정정보
+  ══════════════════════════ -->
+  <div class="panel" id="panel-sido">
+    <div class="sec-head">
+      <div>
+        <div class="sec-title">시도별 실시간 측정정보 조회</div>
+        <div class="sec-sub">getCtprvnRltmMesureDnsty · 시도 전체 측정소 현황</div>
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-group">
+        <div class="ctrl-label">시도 선택</div>
+        <select id="sido-name">
+          <option value="서울">서울</option>
+          <option value="부산">부산</option>
+          <option value="대구">대구</option>
+          <option value="인천">인천</option>
+          <option value="광주">광주</option>
+          <option value="대전">대전</option>
+          <option value="울산">울산</option>
+          <option value="경기">경기</option>
+          <option value="강원">강원</option>
+          <option value="충북">충북</option>
+          <option value="충남">충남</option>
+          <option value="전북">전북</option>
+          <option value="전남">전남</option>
+          <option value="경북">경북</option>
+          <option value="경남">경남</option>
+          <option value="제주">제주</option>
+          <option value="세종">세종</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">데이터 기간</div>
+        <select id="sido-term">
+          <option value="DAILY">일간</option>
+          <option value="MONTH">월간</option>
+          <option value="3MONTH">3개월</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">조회 건수</div>
+        <select id="sido-rows">
+          <option value="50">50건</option>
+          <option value="100">100건</option>
+          <option value="200">200건</option>
+        </select>
+      </div>
+      <button class="btn" id="sido-btn">조회</button>
+    </div>
+    <div class="result-area" id="sido-result">
+      <div class="state-box">🗺 시도를 선택하고 조회하세요</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const API_KEY  = 'dc8294cd0177c5d51b45be29652fb691c4b18e055f22c87b0967ca1a78c7df0a';
+const BASE     = 'https://apis.data.go.kr/B552584/ArpltnInforInqireSvc';
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function apiFetch(op, params) {
+  const qs = Object.entries({ serviceKey: API_KEY, returnType: 'json', numOfRows: 100, pageNo: 1, ...params })
+    .map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  // Note: serviceKey must NOT be double-encoded — use raw key
+  const url = `${BASE}/${op}?serviceKey=${API_KEY}&returnType=json&numOfRows=${params.numOfRows||100}&pageNo=1` +
+    Object.entries(params).filter(([k]) => k !== 'numOfRows')
+      .map(([k,v]) => `&${k}=${encodeURIComponent(v)}`).join('');
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const items = json?.response?.body?.items;
+  if (!items) throw new Error(json?.response?.header?.resultMsg || '데이터 없음');
+  return Array.isArray(items) ? items : (items.item ? (Array.isArray(items.item) ? items.item : [items.item]) : []);
+}
+
+function loading(id) {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="spinner"></div><span>데이터 불러오는 중…</span></div>`;
+}
+
+function errBox(id, msg) {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="err-icon">⚠️</div><div class="err-msg">${msg}<br><small style="color:var(--text2);font-size:.68rem">CORS 이슈 시 로컬 서버 환경에서 실행하거나 CORS 확장을 사용하세요.</small></div></div>`;
+}
+
+/* AQI 등급 → CSS class */
+function gradeClass(g) {
+  if (!g) return 'gx';
+  const s = String(g).replace(/\s/g,'');
+  if (s.includes('좋음'))    return 'g1';
+  if (s.includes('보통'))    return 'g2';
+  if (s.includes('나쁨')&&!s.includes('매우')) return 'g3';
+  if (s.includes('매우나쁨')||s.includes('매우 나쁨')) return 'g4';
+  if (s.includes('위험'))    return 'g5';
+  return 'gx';
+}
+
+function valClass(val, thresholds) {
+  // thresholds: [good, normal, bad, vbad]
+  if (!val || val === '-') return '';
+  const n = parseFloat(val);
+  if (isNaN(n)) return '';
+  if (n <= thresholds[0]) return 'g1';
+  if (n <= thresholds[1]) return 'g2';
+  if (n <= thresholds[2]) return 'g3';
+  if (n <= thresholds[3]) return 'g4';
+  return 'g5';
+}
+
+const PM10_TH  = [30, 80, 150, 300];
+const PM25_TH  = [15, 35,  75, 150];
+const O3_TH    = [.030, .090, .150, .300];
+const NO2_TH   = [.030, .060, .200, .400];
+const CO_TH    = [2, 9, 15, 50];
+const SO2_TH   = [.020, .050, .150, .350];
+
+function pm10Class(v)  { return valClass(v, PM10_TH); }
+function pm25Class(v)  { return valClass(v, PM25_TH); }
+
+/* ════════════════════════════════════════
+   TAB ROUTING
+════════════════════════════════════════ */
+document.getElementById('tabBar').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+});
+
+/* ════════════════════════════════════════
+   ① 대기질 예보통보
+════════════════════════════════════════ */
+document.getElementById('fc-date').value = today();
+document.getElementById('fc-btn').onclick = async () => {
+  const searchDate  = document.getElementById('fc-date').value;
+  const informCode  = document.getElementById('fc-inform').value;
+  loading('fc-result');
+  try {
+    const items = await apiFetch('getMinuDustFrcstDspth', {
+      searchDate,
+      informCode,
+      numOfRows: 20
+    });
+
+    if (!items.length) {
+      document.getElementById('fc-result').innerHTML =
+        `<div class="state-box">📭 해당 날짜의 예보 데이터가 없습니다</div>`; return;
+    }
+
+    let html = '';
+    items.forEach(it => {
+      const gc = gradeClass(it.informGrade || '');
+      const grades = (it.informGrade || '').split(',').map(s => s.trim()).filter(Boolean);
+
+      html += `
+        <div class="fc-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-size:.88rem;font-weight:600">${it.informCode || '—'}</div>
+            <div class="fc-date">${it.dataTime || ''}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <span class="grade-badge ${gradeClass(it.informOverall||'')}">
+              ${it.informOverall || '등급 없음'}
+            </span>
+          </div>
+          <div class="fc-text">${it.informCause || '예보 내용 없음'}</div>
+          ${grades.length ? `<div class="fc-regions">
+            ${grades.map(g => {
+              const parts = g.split(':');
+              const region = parts[0]?.trim();
+              const grade  = parts[1]?.trim();
+              return `<span class="fc-region" style="border-color:transparent">
+                <span style="color:var(--text2)">${region}</span>
+                ${grade ? `<span class="grade-badge ${gradeClass(grade)}" style="margin-left:4px;padding:1px 6px;font-size:.6rem">${grade}</span>` : ''}
+              </span>`;
+            }).join('')}
+          </div>` : ''}
+          ${it.actionKnack ? `<div style="margin-top:10px;font-size:.75rem;color:var(--text2);line-height:1.6;padding-top:10px;border-top:1px solid var(--border)">${it.actionKnack}</div>` : ''}
+        </div>`;
+    });
+    document.getElementById('fc-result').innerHTML = html;
+  } catch(e) { errBox('fc-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ② 초미세먼지 주간예보
+════════════════════════════════════════ */
+document.getElementById('pm25-date').value = today();
+document.getElementById('pm25-btn').onclick = async () => {
+  const searchDate = document.getElementById('pm25-date').value;
+  loading('pm25-result');
+  try {
+    const items = await apiFetch('getMinuDustWeekFrcstDspth', {
+      searchDate,
+      numOfRows: 20
+    });
+
+    if (!items.length) {
+      document.getElementById('pm25-result').innerHTML =
+        `<div class="state-box">📭 해당 날짜의 주간예보 데이터가 없습니다</div>`; return;
+    }
+
+    let html = '';
+    items.forEach(it => {
+      const fdays = ['frcstOneDy','frcstTwoDy','frcstThreeDy','frcstFourDy'];
+      const dlabels = ['D+1','D+2','D+3','D+4'];
+
+      html += `
+        <div class="fc-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:.88rem;font-weight:600">PM2.5 주간예보</div>
+            <div class="fc-date">${it.dataTime || it.searchDate || ''}</div>
+          </div>
+          <div class="metrics">
+            ${fdays.map((k,i) => it[k] ? `
+              <div class="metric">
+                <div class="metric-label">${dlabels[i]}</div>
+                <div class="metric-val ${gradeClass(it[k])}" style="font-size:.82rem">${it[k]}</div>
+              </div>` : '').join('')}
+          </div>
+          ${it.dpm25Grade ? `<div style="margin-top:10px">
+            <span class="grade-badge ${gradeClass(it.dpm25Grade)}">${it.dpm25Grade}</span>
+          </div>` : ''}
+          ${it.dpm25Cause ? `<div style="margin-top:10px;font-size:.78rem;color:var(--text2);line-height:1.7">${it.dpm25Cause}</div>` : ''}
+          ${it.dpm25ActionKnack ? `<div style="margin-top:8px;font-size:.72rem;color:var(--text2);line-height:1.6;padding-top:8px;border-top:1px solid var(--border)">${it.dpm25ActionKnack}</div>` : ''}
+        </div>`;
+    });
+    document.getElementById('pm25-result').innerHTML = html;
+  } catch(e) { errBox('pm25-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ③ 측정소별 실시간 측정정보
+════════════════════════════════════════ */
+document.getElementById('st-btn').onclick = async () => {
+  const stationName = document.getElementById('st-name').value.trim();
+  const dataTerm    = document.getElementById('st-term').value;
+  const numOfRows   = document.getElementById('st-rows').value;
+  if (!stationName) { alert('측정소 이름을 입력하세요'); return; }
+  loading('st-result');
+  try {
+    const items = await apiFetch('getMsrstnAcctoRltmMesureDnsty', {
+      stationName,
+      dataTerm,
+      numOfRows,
+      ver: '1.0'
+    });
+
+    if (!items.length) {
+      document.getElementById('st-result').innerHTML =
+        `<div class="state-box">📭 해당 측정소의 데이터가 없습니다</div>`; return;
+    }
+
+    // Summary of latest
+    const latest = items[0];
+    let html = `
+      <div class="summary-bar">
+        <div class="sum-item"><div class="sum-key">측정소</div><div class="sum-val">${latest.stationName||stationName}</div></div>
+        <div class="sum-item"><div class="sum-key">주소</div><div class="sum-val" style="font-size:.75rem;font-family:'IBM Plex Sans KR'">${latest.stationAddr||'—'}</div></div>
+        <div class="sum-item"><div class="sum-key">최신 측정</div><div class="sum-val">${latest.dataTime||'—'}</div></div>
+        <div class="sum-item"><div class="sum-key">통합지수</div>
+          <div class="sum-val">
+            <span class="grade-badge ${gradeClass(latest.khaiGrade||'')}">
+              ${latest.khaiGrade||'—'} (${latest.khaiValue||'—'})
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>측정 시각</th>
+              <th>PM10 (㎍/㎥)</th>
+              <th>PM2.5 (㎍/㎥)</th>
+              <th>O₃ (ppm)</th>
+              <th>NO₂ (ppm)</th>
+              <th>CO (ppm)</th>
+              <th>SO₂ (ppm)</th>
+              <th>통합지수</th>
+              <th>통합등급</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(it => `
+              <tr>
+                <td style="font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--text2)">${it.dataTime||'—'}</td>
+                <td><span class="metric-val ${pm10Class(it.pm10Value)}">${it.pm10Value||'—'}</span></td>
+                <td><span class="metric-val ${pm25Class(it.pm25Value)}">${it.pm25Value||'—'}</span></td>
+                <td>${it.o3Value||'—'}</td>
+                <td>${it.no2Value||'—'}</td>
+                <td>${it.coValue||'—'}</td>
+                <td>${it.so2Value||'—'}</td>
+                <td style="font-family:'IBM Plex Mono',monospace">${it.khaiValue||'—'}</td>
+                <td><span class="grade-badge ${gradeClass(it.khaiGrade)}">${it.khaiGrade||'—'}</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    document.getElementById('st-result').innerHTML = html;
+  } catch(e) { errBox('st-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ④ 통합대기환경지수 나쁨 이상 측정소
+════════════════════════════════════════ */
+document.getElementById('bad-btn').onclick = async () => {
+  const numOfRows = document.getElementById('bad-rows').value;
+  loading('bad-result');
+  try {
+    const items = await apiFetch('getUnityAirEnvrnIdexSnstiveAboveMsrstn', {
+      numOfRows
+    });
+
+    if (!items.length) {
+      document.getElementById('bad-result').innerHTML =
+        `<div class="state-box">✅ 현재 나쁨 이상 측정소가 없습니다</div>`; return;
+    }
+
+    // Count by grade
+    const gradeCounts = {};
+    items.forEach(it => {
+      const g = it.khaiGrade || '미정';
+      gradeCounts[g] = (gradeCounts[g]||0) + 1;
+    });
+
+    let html = `
+      <div class="summary-bar">
+        <div class="sum-item"><div class="sum-key">나쁨 이상 측정소</div><div class="sum-val" style="color:var(--g3)">${items.length}개소</div></div>
+        ${Object.entries(gradeCounts).map(([g,c]) =>
+          `<div class="sum-item"><div class="sum-key">${g}</div><div class="sum-val"><span class="grade-badge ${gradeClass(g)}">${c}곳</span></div></div>`
+        ).join('')}
+      </div>
+
+      <div class="cards-grid">
+        ${items.map(it => `
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">${it.stationName||'—'}</div>
+                <div class="card-time" style="margin-top:3px">${it.sidoName||''} · ${it.stationAddr||''}</div>
+              </div>
+              <span class="grade-badge ${gradeClass(it.khaiGrade)}">${it.khaiGrade||'—'}</span>
+            </div>
+            <div class="metrics">
+              <div class="metric">
+                <div class="metric-label">PM10</div>
+                <div class="metric-val ${pm10Class(it.pm10Value)}">${it.pm10Value||'—'}<small style="font-size:.6rem;margin-left:2px">㎍</small></div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">PM2.5</div>
+                <div class="metric-val ${pm25Class(it.pm25Value)}">${it.pm25Value||'—'}<small style="font-size:.6rem;margin-left:2px">㎍</small></div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">통합지수</div>
+                <div class="metric-val ${gradeClass(it.khaiGrade)}">${it.khaiValue||'—'}</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">O₃</div>
+                <div class="metric-val">${it.o3Value||'—'}</div>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+    document.getElementById('bad-result').innerHTML = html;
+  } catch(e) { errBox('bad-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ⑤ 시도별 실시간 측정정보
+════════════════════════════════════════ */
+document.getElementById('sido-btn').onclick = async () => {
+  const sidoName  = document.getElementById('sido-name').value;
+  const dataTerm  = document.getElementById('sido-term').value;
+  const numOfRows = document.getElementById('sido-rows').value;
+  loading('sido-result');
+  try {
+    const items = await apiFetch('getCtprvnRltmMesureDnsty', {
+      sidoName: encodeURIComponent(sidoName),
+      dataTerm,
+      numOfRows,
+      ver: '1.0'
+    });
+
+    if (!items.length) {
+      document.getElementById('sido-result').innerHTML =
+        `<div class="state-box">📭 데이터가 없습니다</div>`; return;
+    }
+
+    // Grade distribution
+    const dist = { '좋음':0,'보통':0,'나쁨':0,'매우나쁨':0,'위험':0 };
+    items.forEach(it => {
+      const g = it.khaiGrade;
+      if (g && dist[g] !== undefined) dist[g]++;
+    });
+
+    let html = `
+      <div class="summary-bar">
+        <div class="sum-item"><div class="sum-key">시도</div><div class="sum-val">${sidoName}</div></div>
+        <div class="sum-item"><div class="sum-key">조회 측정소</div><div class="sum-val">${items.length}개</div></div>
+        ${Object.entries(dist).filter(([,c])=>c>0).map(([g,c])=>
+          `<div class="sum-item"><div class="sum-key">${g}</div><div class="sum-val"><span class="grade-badge ${gradeClass(g)}">${c}</span></div></div>`
+        ).join('')}
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>측정소</th>
+              <th>측정 시각</th>
+              <th>PM10</th>
+              <th>PM2.5</th>
+              <th>O₃</th>
+              <th>NO₂</th>
+              <th>CO</th>
+              <th>SO₂</th>
+              <th>통합지수</th>
+              <th>등급</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(it => `
+              <tr>
+                <td style="font-weight:500;white-space:nowrap">${it.stationName||'—'}</td>
+                <td style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--text2);white-space:nowrap">${(it.dataTime||'—').slice(5)}</td>
+                <td><span class="metric-val ${pm10Class(it.pm10Value)}">${it.pm10Value||'—'}</span></td>
+                <td><span class="metric-val ${pm25Class(it.pm25Value)}">${it.pm25Value||'—'}</span></td>
+                <td>${it.o3Value||'—'}</td>
+                <td>${it.no2Value||'—'}</td>
+                <td>${it.coValue||'—'}</td>
+                <td>${it.so2Value||'—'}</td>
+                <td style="font-family:'IBM Plex Mono',monospace">${it.khaiValue||'—'}</td>
+                <td><span class="grade-badge ${gradeClass(it.khaiGrade)}">${it.khaiGrade||'—'}</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    document.getElementById('sido-result').innerHTML = html;
+  } catch(e) { errBox('sido-result', e.message); }
+};
+</script>
+</body>
+</html>
