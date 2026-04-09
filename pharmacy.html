@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>전국 약국 정보 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ════════════════════════════════════
+   TOKENS
+════════════════════════════════════ */
+:root {
+  --bg:       #f0f4f8;
+  --surface:  #ffffff;
+  --panel:    #f8fafc;
+  --ink:      #1e293b;
+  --ink2:     #475569;
+  --muted:    #94a3b8;
+  --line:     #e2e8f0;
+  --accent:   #0ea5e9;
+  --accent-d: #0284c7;
+  --green:    #10b981;
+  --amber:    #f59e0b;
+  --red:      #ef4444;
+  --r:        10px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow:    0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+}
+
+/* ════════════════════════════════════
+   RESET
+════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+}
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+
+/* ════════════════════════════════════
+   HEADER
+════════════════════════════════════ */
+.site-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+  color: #fff;
+  padding: 20px 24px 18px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.2);
+}
+.header-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.header-logo {
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.logo-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--green));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; flex-shrink: 0;
+}
+.logo-text h1 { font-size: 1.1rem; font-weight: 700; line-height: 1.2; }
+.logo-text p  { font-size: .62rem; color: rgba(255,255,255,.5); letter-spacing: 1px; margin-top: 2px; }
+
+.header-tabs {
+  display: flex; gap: 4px; flex: 1;
+  overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+  margin-left: 8px;
+}
+.header-tabs::-webkit-scrollbar { display: none; }
+.htab {
+  flex-shrink: 0; padding: 7px 16px; border-radius: 8px;
+  font-size: .75rem; font-weight: 600; color: rgba(255,255,255,.55);
+  border: none; background: transparent; cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.htab:hover  { background: rgba(255,255,255,.1); color: #fff; }
+.htab.active { background: rgba(14,165,233,.3); color: var(--accent); }
+
+/* ════════════════════════════════════
+   LAYOUT
+════════════════════════════════════ */
+.app-wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+/* panel show/hide */
+.panel { display: none; }
+.panel.active { display: block; animation: fadeSlide .2s ease; }
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── section title ── */
+.sec-hd { margin-bottom: 16px; }
+.sec-hd h2 { font-size: 1.05rem; font-weight: 700; }
+.sec-hd p  { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+
+/* ── search box ── */
+.search-box {
+  background: var(--surface);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--line);
+  padding: 18px 18px 14px;
+  margin-bottom: 16px;
+}
+.field-row {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+}
+.field {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 1; min-width: 140px;
+}
+.field label {
+  font-size: .67rem; font-weight: 600;
+  color: var(--muted); letter-spacing: .5px; text-transform: uppercase;
+}
+input[type=text], input[type=number], select {
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+  font-family: inherit; font-size: .85rem;
+  padding: 9px 12px; border-radius: 8px;
+  outline: none; transition: border-color .15s;
+  appearance: none; -webkit-appearance: none;
+  width: 100%;
+}
+input:focus, select:focus { border-color: var(--accent); background: #fff; }
+select option { background: #fff; }
+
+.btn-search {
+  padding: 9px 22px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-d));
+  color: #fff; border: none; border-radius: 8px;
+  font-family: inherit; font-size: .85rem; font-weight: 700;
+  cursor: pointer; transition: opacity .15s, transform .1s;
+  white-space: nowrap; align-self: flex-end;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 2px 8px rgba(14,165,233,.3);
+}
+.btn-search:hover  { opacity: .9; }
+.btn-search:active { transform: scale(.97); }
+
+.btn-outline {
+  padding: 9px 16px;
+  background: transparent; color: var(--ink2);
+  border: 1.5px solid var(--line); border-radius: 8px;
+  font-family: inherit; font-size: .82rem; font-weight: 500;
+  cursor: pointer; transition: all .15s; align-self: flex-end;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── result header ── */
+.result-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+}
+.result-count {
+  font-size: .8rem; color: var(--muted); font-weight: 500;
+}
+.result-count b { color: var(--accent); }
+
+/* ── state box ── */
+.state-box {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 48px 20px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; color: var(--muted); font-size: .85rem; text-align: center;
+}
+.state-box .icon { font-size: 2.4rem; }
+.spinner {
+  width: 24px; height: 24px;
+  border: 3px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.err-msg { color: var(--red); font-size: .8rem; line-height: 1.6; }
+.err-hint { font-size: .7rem; color: var(--muted); line-height: 1.6; }
+
+/* ════════════════════════════════════
+   CARD GRID
+════════════════════════════════════ */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.ph-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .18s, border-color .18s;
+  cursor: default;
+}
+.ph-card:hover {
+  box-shadow: var(--shadow);
+  border-color: rgba(14,165,233,.3);
+}
+
+.card-name {
+  font-size: .95rem; font-weight: 700; color: var(--ink);
+  line-height: 1.3; margin-bottom: 6px;
+  display: flex; align-items: flex-start; gap: 6px;
+}
+.badge {
+  flex-shrink: 0; font-size: .6rem; font-weight: 600;
+  padding: 2px 7px; border-radius: 20px;
+  background: rgba(14,165,233,.1); color: var(--accent);
+  margin-top: 2px; white-space: nowrap;
+}
+.badge.open  { background: rgba(16,185,129,.1); color: var(--green); }
+.badge.closed{ background: rgba(239,68,68,.08);  color: var(--red);   }
+
+.card-addr {
+  font-size: .75rem; color: var(--ink2); line-height: 1.5;
+  margin-bottom: 8px;
+}
+.card-addr .addr-icon { margin-right: 4px; }
+
+.card-meta {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 8px;
+}
+.meta-chip {
+  display: flex; align-items: center; gap: 4px;
+  font-size: .68rem; color: var(--ink2);
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 3px 8px; border-radius: 6px;
+}
+.meta-chip .icon { font-size: .8rem; }
+
+.card-divider { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
+
+.card-hours {
+  font-size: .72rem; color: var(--ink2);
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 8px;
+}
+.card-hours dt { color: var(--muted); white-space: nowrap; }
+.card-hours dd { font-weight: 500; }
+
+.card-actions {
+  display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;
+}
+.act-btn {
+  padding: 5px 12px; border-radius: 6px; font-size: .72rem; font-weight: 600;
+  border: 1.5px solid var(--line); background: transparent; color: var(--ink2);
+  cursor: pointer; transition: all .15s;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+}
+.act-btn:hover { border-color: var(--accent); color: var(--accent); }
+.act-btn.primary {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.act-btn.primary:hover { background: var(--accent-d); border-color: var(--accent-d); }
+
+/* ════════════════════════════════════
+   TABLE
+════════════════════════════════════ */
+.tbl-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden; overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: .78rem;
+}
+.data-table th {
+  background: var(--panel); padding: 10px 14px;
+  text-align: left; font-size: .68rem; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 1.5px solid var(--line); white-space: nowrap;
+}
+.data-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(226,232,240,.6);
+  vertical-align: middle; line-height: 1.5;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(14,165,233,.025); }
+
+/* ════════════════════════════════════
+   FULLDATA PANEL
+════════════════════════════════════ */
+.fulldata-info {
+  background: linear-gradient(135deg, rgba(14,165,233,.07), rgba(16,185,129,.05));
+  border: 1px solid rgba(14,165,233,.2);
+  border-radius: var(--r); padding: 18px 20px; margin-bottom: 16px;
+}
+.fulldata-info h3 { font-size: .9rem; font-weight: 700; margin-bottom: 8px; }
+.fulldata-info p  { font-size: .78rem; color: var(--ink2); line-height: 1.7; }
+
+.dl-card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.dl-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px; border-radius: 8px;
+  border: 1.5px solid var(--line);
+  transition: border-color .15s;
+}
+.dl-item:hover { border-color: var(--accent); }
+.dl-icon {
+  width: 42px; height: 42px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--green));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+}
+.dl-info { flex: 1; min-width: 0; }
+.dl-info strong { font-size: .88rem; font-weight: 700; display: block; }
+.dl-info span   { font-size: .72rem; color: var(--muted); margin-top: 2px; display: block; }
+.btn-dl {
+  padding: 8px 16px; border-radius: 8px;
+  background: var(--accent); color: #fff;
+  border: none; font-family: inherit; font-size: .78rem; font-weight: 700;
+  cursor: pointer; transition: opacity .15s; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-dl:hover { opacity: .85; }
+
+/* ════════════════════════════════════
+   PAGINATION
+════════════════════════════════════ */
+.pagination {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; margin-top: 16px; flex-wrap: wrap;
+}
+.pg-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1.5px solid var(--line); background: var(--surface);
+  color: var(--ink2); font-size: .8rem; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all .15s; -webkit-tap-highlight-color: transparent;
+}
+.pg-btn:hover { border-color: var(--accent); color: var(--accent); }
+.pg-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pg-btn:disabled { opacity: .4; cursor: not-allowed; }
+.pg-info { font-size: .75rem; color: var(--muted); padding: 0 4px; }
+
+/* ════════════════════════════════════
+   MOBILE
+════════════════════════════════════ */
+@media (max-width: 600px) {
+  .site-header { padding: 14px 16px; }
+  .logo-text h1 { font-size: .95rem; }
+  .header-tabs { margin-left: 0; }
+  .card-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════ HEADER ════════════════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <div class="logo-icon">💊</div>
+      <div class="logo-text">
+        <h1>전국 약국 정보 조회</h1>
+        <p>국립중앙의료원 · 공공데이터포털</p>
+      </div>
+    </div>
+    <div class="header-tabs" id="tabBar">
+      <button class="htab active" data-tab="list">📋 약국 목록</button>
+      <button class="htab" data-tab="location">📍 위치정보</button>
+      <button class="htab" data-tab="detail">🏥 기본정보</button>
+      <button class="htab" data-tab="fulldata">💾 FullData</button>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════ MAIN ════════════════ -->
+<div class="app-wrap">
+
+  <!-- ① 약국 목록정보 조회 -->
+  <div class="panel active" id="panel-list">
+    <div class="sec-hd">
+      <h2>약국 목록정보 조회</h2>
+      <p>getParmacyListInfoInqire — 시도·시군구·약국명으로 검색</p>
+    </div>
+    <div class="search-box">
+      <div class="field-row">
+        <div class="field">
+          <label>시도명</label>
+          <select id="list-sido">
+            <option value="">전체</option>
+            <option value="서울특별시">서울특별시</option>
+            <option value="부산광역시">부산광역시</option>
+            <option value="대구광역시">대구광역시</option>
+            <option value="인천광역시">인천광역시</option>
+            <option value="광주광역시">광주광역시</option>
+            <option value="대전광역시">대전광역시</option>
+            <option value="울산광역시">울산광역시</option>
+            <option value="세종특별자치시">세종특별자치시</option>
+            <option value="경기도">경기도</option>
+            <option value="강원도">강원도</option>
+            <option value="충청북도">충청북도</option>
+            <option value="충청남도">충청남도</option>
+            <option value="전라북도">전라북도</option>
+            <option value="전라남도">전라남도</option>
+            <option value="경상북도">경상북도</option>
+            <option value="경상남도">경상남도</option>
+            <option value="제주특별자치도">제주특별자치도</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>시군구명</label>
+          <input type="text" id="list-sigungu" placeholder="예: 강남구, 수원시"/>
+        </div>
+        <div class="field">
+          <label>약국명</label>
+          <input type="text" id="list-name" placeholder="예: 한마음약국"/>
+        </div>
+        <div class="field" style="max-width:90px">
+          <label>조회수</label>
+          <select id="list-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+        <button class="btn-search" id="list-btn">🔍 검색</button>
+      </div>
+    </div>
+    <div id="list-result">
+      <div class="state-box"><div class="icon">💊</div><span>조건을 입력하고 검색하세요</span></div>
+    </div>
+  </div>
+
+  <!-- ② 약국 위치정보 조회 -->
+  <div class="panel" id="panel-location">
+    <div class="sec-hd">
+      <h2>약국 위치정보 조회</h2>
+      <p>getParmacyBassInfoInqire — WGS84 좌표 기반 위치 정보</p>
+    </div>
+    <div class="search-box">
+      <div class="field-row">
+        <div class="field">
+          <label>시도명</label>
+          <select id="loc-sido">
+            <option value="">전체</option>
+            <option value="서울특별시">서울특별시</option>
+            <option value="부산광역시">부산광역시</option>
+            <option value="대구광역시">대구광역시</option>
+            <option value="인천광역시">인천광역시</option>
+            <option value="광주광역시">광주광역시</option>
+            <option value="대전광역시">대전광역시</option>
+            <option value="울산광역시">울산광역시</option>
+            <option value="세종특별자치시">세종특별자치시</option>
+            <option value="경기도">경기도</option>
+            <option value="강원도">강원도</option>
+            <option value="충청북도">충청북도</option>
+            <option value="충청남도">충청남도</option>
+            <option value="전라북도">전라북도</option>
+            <option value="전라남도">전라남도</option>
+            <option value="경상북도">경상북도</option>
+            <option value="경상남도">경상남도</option>
+            <option value="제주특별자치도">제주특별자치도</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>시군구명</label>
+          <input type="text" id="loc-sigungu" placeholder="예: 종로구"/>
+        </div>
+        <div class="field">
+          <label>약국명</label>
+          <input type="text" id="loc-name" placeholder="예: 서울약국"/>
+        </div>
+        <div class="field" style="max-width:90px">
+          <label>조회수</label>
+          <select id="loc-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+        <button class="btn-search" id="loc-btn">🔍 검색</button>
+      </div>
+    </div>
+    <div id="loc-result">
+      <div class="state-box"><div class="icon">📍</div><span>조건을 입력하고 검색하세요</span></div>
+    </div>
+  </div>
+
+  <!-- ③ 약국별 기본정보 조회 -->
+  <div class="panel" id="panel-detail">
+    <div class="sec-hd">
+      <h2>약국별 기본정보 조회</h2>
+      <p>getParmacyDetailInfoInqire — 운영시간·전화번호 등 상세 정보</p>
+    </div>
+    <div class="search-box">
+      <div class="field-row">
+        <div class="field">
+          <label>시도명</label>
+          <select id="det-sido">
+            <option value="">전체</option>
+            <option value="서울특별시">서울특별시</option>
+            <option value="부산광역시">부산광역시</option>
+            <option value="대구광역시">대구광역시</option>
+            <option value="인천광역시">인천광역시</option>
+            <option value="광주광역시">광주광역시</option>
+            <option value="대전광역시">대전광역시</option>
+            <option value="울산광역시">울산광역시</option>
+            <option value="세종특별자치시">세종특별자치시</option>
+            <option value="경기도">경기도</option>
+            <option value="강원도">강원도</option>
+            <option value="충청북도">충청북도</option>
+            <option value="충청남도">충청남도</option>
+            <option value="전라북도">전라북도</option>
+            <option value="전라남도">전라남도</option>
+            <option value="경상북도">경상북도</option>
+            <option value="경상남도">경상남도</option>
+            <option value="제주특별자치도">제주특별자치도</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>시군구명</label>
+          <input type="text" id="det-sigungu" placeholder="예: 마포구"/>
+        </div>
+        <div class="field">
+          <label>약국명</label>
+          <input type="text" id="det-name" placeholder="예: 홍대약국"/>
+        </div>
+        <div class="field" style="max-width:90px">
+          <label>조회수</label>
+          <select id="det-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+        <button class="btn-search" id="det-btn">🔍 검색</button>
+      </div>
+    </div>
+    <div id="det-result">
+      <div class="state-box"><div class="icon">🏥</div><span>조건을 입력하고 검색하세요</span></div>
+    </div>
+  </div>
+
+  <!-- ④ 약국 FullData 내려받기 -->
+  <div class="panel" id="panel-fulldata">
+    <div class="sec-hd">
+      <h2>약국 FullData 내려받기</h2>
+      <p>getParmacyFullDown — 전국 약국 전체 데이터 조회</p>
+    </div>
+    <div class="fulldata-info">
+      <h3>📦 전체 데이터 안내</h3>
+      <p>
+        전국 모든 약국의 상세 정보를 한 번에 조회합니다.<br>
+        데이터 양이 많으므로 조회에 시간이 걸릴 수 있습니다.<br>
+        조회 결과를 표 형태로 확인하거나 CSV로 내려받을 수 있습니다.
+      </p>
+    </div>
+    <div class="dl-card">
+      <div class="dl-item">
+        <div class="dl-icon">📋</div>
+        <div class="dl-info">
+          <strong>전국 약국 목록 조회</strong>
+          <span>전국 모든 약국의 기본 정보를 페이지 단위로 조회</span>
+        </div>
+        <button class="btn-dl" id="full-fetch-btn">조회 시작</button>
+      </div>
+      <div class="field-row" style="padding:4px 0">
+        <div class="field" style="max-width:120px">
+          <label>페이지당 건수</label>
+          <select id="full-rows">
+            <option value="100">100건</option>
+            <option value="500">500건</option>
+            <option value="1000">1000건</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:100px">
+          <label>페이지</label>
+          <input type="number" id="full-page" value="1" min="1"/>
+        </div>
+        <button class="btn-outline" id="full-csv-btn" style="display:none">⬇ CSV 저장</button>
+      </div>
+    </div>
+    <div style="margin-top:16px" id="full-result">
+      <div class="state-box"><div class="icon">💾</div><span>조회 시작 버튼을 누르세요</span></div>
+    </div>
+  </div>
+
+</div><!-- app-wrap -->
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const API_KEY = 'dc8294cd0177c5d51b45be29652fb691c4b18e055f22c87b0967ca1a78c7df0a';
+const BASE    = 'https://apis.data.go.kr/B552657/ErmctInsttInfoInqireService';
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+const pad2  = n => String(n).padStart(2, '0');
+let fullData = []; // for CSV export
+
+function loading(id) {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="spinner"></div><span>데이터를 불러오는 중…</span></div>`;
+}
+
+function errBox(id, msg) {
+  document.getElementById(id).innerHTML = `
+    <div class="state-box">
+      <div class="icon">⚠️</div>
+      <div class="err-msg">${msg}</div>
+      <div class="err-hint">CORS 이슈 시 로컬 서버 환경에서 실행하거나<br>브라우저 CORS 허용 확장을 사용하세요.</div>
+    </div>`;
+}
+
+function empty(id, msg = '검색 결과가 없습니다') {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="icon">🔍</div><span>${msg}</span></div>`;
+}
+
+async function apiFetch(op, params, page = 1) {
+  const qp = Object.entries({ ...params, pageNo: page })
+    .filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+
+  const url = `${BASE}/${op}?serviceKey=${API_KEY}&${qp}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const xml  = new DOMParser().parseFromString(text, 'text/xml');
+
+  const code = xml.querySelector('resultCode')?.textContent?.trim();
+  if (code && code !== '00') {
+    throw new Error(`API 오류 [${code}]: ${xml.querySelector('resultMsg')?.textContent?.trim()}`);
+  }
+
+  const items = [...xml.querySelectorAll('item')].map(el => {
+    const obj = {};
+    el.querySelectorAll('*').forEach(node => {
+      if (!node.children.length) obj[node.tagName] = node.textContent.trim();
+    });
+    return obj;
+  });
+
+  const total = parseInt(xml.querySelector('totalCount')?.textContent || '0', 10);
+  return { items, total };
+}
+
+function fmt(v, fallback = '—') {
+  if (!v || v === 'null') return fallback;
+  return v;
+}
+
+function fmtTime(t) {
+  if (!t || t.length < 3) return '—';
+  if (t.length === 4) return `${t.slice(0,2)}:${t.slice(2)}`;
+  return t;
+}
+
+function isOpenNow(item) {
+  // 단순 요일·시간 체크
+  const now  = new Date();
+  const dow  = now.getDay(); // 0=Sun
+  const hhmm = now.getHours() * 100 + now.getMinutes();
+  const dayMap = { 0:'Sun', 1:'Mon', 2:'Tue', 3:'Wed', 4:'Thu', 5:'Fri', 6:'Sat' };
+  const d = dayMap[dow];
+  const s = parseInt(item[`dutyTime${d}s`] || '0', 10);
+  const e = parseInt(item[`dutyTime${d}c`] || '0', 10);
+  if (!s || !e) return null;
+  return hhmm >= s && hhmm < e;
+}
+
+/* ════════════════════════════════════════
+   TAB
+════════════════════════════════════════ */
+document.getElementById('tabBar').addEventListener('click', e => {
+  const tab = e.target.closest('.htab');
+  if (!tab) return;
+  document.querySelectorAll('.htab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+});
+
+/* ════════════════════════════════════════
+   CARD BUILDER (list & location)
+════════════════════════════════════════ */
+function buildCards(items, showCoords = false) {
+  return `<div class="card-grid">${items.map(it => {
+    const name   = fmt(it.dutyName || it.hpid);
+    const addr   = fmt(it.dutyAddr);
+    const tel    = fmt(it.dutyTel1);
+    const open   = isOpenNow(it);
+    const openBadge = open === null ? '' :
+      open ? `<span class="badge open">영업중</span>` : `<span class="badge closed">영업종료</span>`;
+
+    const coordPart = showCoords && it.wgs84Lat && it.wgs84Lon ? `
+      <div class="meta-chip"><span class="icon">🌐</span>${parseFloat(it.wgs84Lat).toFixed(5)}, ${parseFloat(it.wgs84Lon).toFixed(5)}</div>
+    ` : '';
+
+    const mapUrl = it.wgs84Lat && it.wgs84Lon
+      ? `https://map.kakao.com/link/map/${encodeURIComponent(name)},${it.wgs84Lat},${it.wgs84Lon}`
+      : `https://map.kakao.com/link/search/${encodeURIComponent(addr)}`;
+
+    return `
+      <div class="ph-card">
+        <div class="card-name">
+          ${name}
+          ${openBadge}
+        </div>
+        <div class="card-addr"><span class="addr-icon">📌</span>${addr}</div>
+        <div class="card-meta">
+          ${tel !== '—' ? `<div class="meta-chip"><span class="icon">📞</span>${tel}</div>` : ''}
+          ${it.dutyDiv ? `<div class="meta-chip"><span class="icon">🏷</span>${it.dutyDiv}</div>` : ''}
+          ${coordPart}
+        </div>
+        ${buildHours(it)}
+        <div class="card-actions">
+          <a class="act-btn primary" href="${mapUrl}" target="_blank" rel="noopener">🗺 지도 보기</a>
+          ${tel !== '—' ? `<a class="act-btn" href="tel:${tel}">📞 전화</a>` : ''}
+        </div>
+      </div>`;
+  }).join('')}</div>`;
+}
+
+function buildHours(it) {
+  const days = [
+    ['월', 'Mon'], ['화', 'Tue'], ['수', 'Wed'], ['목', 'Thu'],
+    ['금', 'Fri'], ['토', 'Sat'], ['일', 'Sun']
+  ];
+  const rows = days
+    .map(([kr, en]) => {
+      const s = it[`dutyTime${en}s`];
+      const e = it[`dutyTime${en}c`];
+      if (!s && !e) return null;
+      return `<dt>${kr}</dt><dd>${fmtTime(s)} ~ ${fmtTime(e)}</dd>`;
+    })
+    .filter(Boolean);
+
+  if (!rows.length) return '';
+  return `<hr class="card-divider"/><dl class="card-hours">${rows.join('')}</dl>`;
+}
+
+/* ════════════════════════════════════════
+   ① 약국 목록정보
+════════════════════════════════════════ */
+let listPage = 1, listParams = {};
+document.getElementById('list-btn').onclick = () => {
+  listPage = 1;
+  listParams = {
+    Q0: document.getElementById('list-sido').value,
+    Q1: document.getElementById('list-sigungu').value.trim(),
+    QN: document.getElementById('list-name').value.trim(),
+    numOfRows: document.getElementById('list-rows').value,
+  };
+  fetchList();
+};
+
+async function fetchList() {
+  loading('list-result');
+  try {
+    const { items, total } = await apiFetch('getParmacyListInfoInqire', listParams, listPage);
+    if (!items.length) { empty('list-result'); return; }
+
+    const rows = parseInt(listParams.numOfRows);
+    const totalPages = Math.ceil(total / rows);
+
+    document.getElementById('list-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>개 · 페이지 ${listPage}/${totalPages}</div>
+      </div>
+      ${buildCards(items)}
+      ${buildPagination('list', listPage, totalPages)}`;
+  } catch(e) { errBox('list-result', e.message); }
+}
+
+/* ════════════════════════════════════════
+   ② 약국 위치정보
+════════════════════════════════════════ */
+let locPage = 1, locParams = {};
+document.getElementById('loc-btn').onclick = () => {
+  locPage = 1;
+  locParams = {
+    Q0: document.getElementById('loc-sido').value,
+    Q1: document.getElementById('loc-sigungu').value.trim(),
+    QN: document.getElementById('loc-name').value.trim(),
+    numOfRows: document.getElementById('loc-rows').value,
+  };
+  fetchLoc();
+};
+
+async function fetchLoc() {
+  loading('loc-result');
+  try {
+    const { items, total } = await apiFetch('getParmacyBassInfoInqire', locParams, locPage);
+    if (!items.length) { empty('loc-result'); return; }
+
+    const rows = parseInt(locParams.numOfRows);
+    const totalPages = Math.ceil(total / rows);
+
+    document.getElementById('loc-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>개 · 페이지 ${locPage}/${totalPages}</div>
+      </div>
+      ${buildCards(items, true)}
+      ${buildPagination('loc', locPage, totalPages)}`;
+  } catch(e) { errBox('loc-result', e.message); }
+}
+
+/* ════════════════════════════════════════
+   ③ 약국별 기본정보 (운영시간 포함)
+════════════════════════════════════════ */
+let detPage = 1, detParams = {};
+document.getElementById('det-btn').onclick = () => {
+  detPage = 1;
+  detParams = {
+    Q0: document.getElementById('det-sido').value,
+    Q1: document.getElementById('det-sigungu').value.trim(),
+    QN: document.getElementById('det-name').value.trim(),
+    numOfRows: document.getElementById('det-rows').value,
+  };
+  fetchDet();
+};
+
+async function fetchDet() {
+  loading('det-result');
+  try {
+    const { items, total } = await apiFetch('getParmacyDetailInfoInqire', detParams, detPage);
+    if (!items.length) { empty('det-result'); return; }
+
+    const rows = parseInt(detParams.numOfRows);
+    const totalPages = Math.ceil(total / rows);
+
+    // detail: show as table with opening hours
+    const tblRows = items.map(it => {
+      const open = isOpenNow(it);
+      const badge = open === null ? '' :
+        open ? `<span class="badge open" style="font-size:.58rem">영업중</span>` :
+               `<span class="badge closed" style="font-size:.58rem">영업종료</span>`;
+      const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      const kr   = ['월','화','수','목','금','토','일'];
+      const hours = days.map((d,i) => {
+        const s = it[`dutyTime${d}s`], e = it[`dutyTime${d}c`];
+        return (s && e) ? `${kr[i]}:${fmtTime(s)}~${fmtTime(e)}` : null;
+      }).filter(Boolean).join(' / ');
+
+      return `<tr>
+        <td style="font-weight:600;white-space:nowrap">${fmt(it.dutyName)} ${badge}</td>
+        <td>${fmt(it.dutyAddr)}</td>
+        <td style="white-space:nowrap">${fmt(it.dutyTel1)}</td>
+        <td style="font-size:.7rem;color:var(--ink2);line-height:1.6">${hours || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('det-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>개 · 페이지 ${detPage}/${totalPages}</div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead><tr><th>약국명</th><th>주소</th><th>전화번호</th><th>운영시간</th></tr></thead>
+          <tbody>${tblRows}</tbody>
+        </table>
+      </div>
+      ${buildPagination('det', detPage, totalPages)}`;
+  } catch(e) { errBox('det-result', e.message); }
+}
+
+/* ════════════════════════════════════════
+   ④ FullData
+════════════════════════════════════════ */
+document.getElementById('full-fetch-btn').onclick = fetchFull;
+
+async function fetchFull() {
+  const numOfRows = document.getElementById('full-rows').value;
+  const page      = parseInt(document.getElementById('full-page').value) || 1;
+  loading('full-result');
+  document.getElementById('full-csv-btn').style.display = 'none';
+
+  try {
+    const { items, total } = await apiFetch('getParmacyFullDown', { numOfRows }, page);
+    if (!items.length) { empty('full-result', '데이터가 없습니다'); return; }
+
+    fullData = items;
+    const totalPages = Math.ceil(total / parseInt(numOfRows));
+
+    const headers = ['dutyName','dutyAddr','dutyTel1','wgs84Lat','wgs84Lon',
+                     'dutyTimeMonS','dutyTimeMonC','dutyTimeTueS','dutyTimeTueC',
+                     'dutyTimeWedS','dutyTimeWedC','dutyTimeThuS','dutyTimeThuC',
+                     'dutyTimeFriS','dutyTimeFriC','dutyTimeSatS','dutyTimeSatC',
+                     'dutyTimeSunS','dutyTimeSunC'];
+    const hdrLabels = ['약국명','주소','전화','위도','경도',
+                       '월시작','월종료','화시작','화종료','수시작','수종료',
+                       '목시작','목종료','금시작','금종료','토시작','토종료','일시작','일종료'];
+
+    const tblBody = items.map(it =>
+      `<tr>${headers.map(h => `<td>${fmt(it[h])}</td>`).join('')}</tr>`
+    ).join('');
+
+    document.getElementById('full-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>개 · 페이지 ${page}/${totalPages} · 현재 ${items.length}건</div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead><tr>${hdrLabels.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${tblBody}</tbody>
+        </table>
+      </div>
+      ${buildPagination('full', page, totalPages, true)}`;
+
+    document.getElementById('full-csv-btn').style.display = '';
+    // re-attach pagination events
+    attachFullPagination(totalPages);
+  } catch(e) { errBox('full-result', e.message); }
+}
+
+function attachFullPagination(totalPages) {
+  document.querySelectorAll('#full-result .pg-btn').forEach(btn => {
+    btn.onclick = () => {
+      const p = parseInt(btn.dataset.p);
+      if (!p) return;
+      document.getElementById('full-page').value = p;
+      fetchFull();
+    };
+  });
+}
+
+/* CSV export */
+document.getElementById('full-csv-btn').onclick = () => {
+  if (!fullData.length) return;
+  const keys = Object.keys(fullData[0]);
+  const csv  = [keys.join(','), ...fullData.map(r =>
+    keys.map(k => `"${(r[k]||'').replace(/"/g,'""')}"`).join(',')
+  )].join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href: url, download: `pharmacy_fulldata_${Date.now()}.csv`
+  });
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+/* ════════════════════════════════════════
+   PAGINATION
+════════════════════════════════════════ */
+function buildPagination(prefix, cur, total, fullMode = false) {
+  if (total <= 1) return '';
+  const WINDOW = 5;
+  const start  = Math.max(1, cur - Math.floor(WINDOW/2));
+  const end    = Math.min(total, start + WINDOW - 1);
+  let btns = '';
+
+  btns += `<button class="pg-btn" data-p="${Math.max(1,cur-1)}" ${cur===1?'disabled':''}>‹</button>`;
+  if (start > 1) btns += `<button class="pg-btn" data-p="1">1</button><span class="pg-info">…</span>`;
+  for (let p = start; p <= end; p++)
+    btns += `<button class="pg-btn ${p===cur?'active':''}" data-p="${p}">${p}</button>`;
+  if (end < total) btns += `<span class="pg-info">…</span><button class="pg-btn" data-p="${total}">${total}</button>`;
+  btns += `<button class="pg-btn" data-p="${Math.min(total,cur+1)}" ${cur===total?'disabled':''}>›</button>`;
+
+  const html = `<div class="pagination" id="${prefix}-pages">${btns}</div>`;
+
+  if (!fullMode) {
+    // attach after render via setTimeout
+    setTimeout(() => {
+      const container = document.getElementById(`${prefix}-pages`);
+      if (!container) return;
+      container.querySelectorAll('.pg-btn:not([disabled])').forEach(btn => {
+        btn.onclick = () => {
+          const p = parseInt(btn.dataset.p);
+          if (prefix === 'list') { listPage = p; fetchList(); }
+          if (prefix === 'loc')  { locPage  = p; fetchLoc(); }
+          if (prefix === 'det')  { detPage  = p; fetchDet(); }
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+      });
+    }, 0);
+  }
+  return html;
+}
+</script>
+</body>
+</html>
