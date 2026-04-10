@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>환율 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+KR:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ══════════════════════════════════════
+   TOKENS
+══════════════════════════════════════ */
+:root {
+  --bg:     #f0ede8;
+  --ink:    #1a1714;
+  --ink2:   #5a5550;
+  --muted:  #9a948e;
+  --line:   #dedad4;
+  --surface:#ffffff;
+  --up:     #d4380d;
+  --dn:     #096dd9;
+  --acc:    #1a1714;
+  --gold:   #b7962e;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+}
+
+/* ── BG texture ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(0,0,0,.025) 28px, rgba(0,0,0,.025) 29px),
+    repeating-linear-gradient(90deg, transparent, transparent 28px, rgba(0,0,0,.015) 28px, rgba(0,0,0,.015) 29px);
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+
+/* ══════════════════════════════════════
+   HEADER
+══════════════════════════════════════ */
+.site-header {
+  background: var(--ink);
+  color: #f0ede8;
+  padding: 20px 28px 18px;
+  position: sticky; top: 0; z-index: 100;
+  border-bottom: 1px solid #333;
+}
+.hd-inner {
+  max-width: 1080px; margin: 0 auto;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.hd-brand h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.35rem; font-weight: 800;
+  letter-spacing: -1px; line-height: 1;
+  color: #fff;
+}
+.hd-brand p {
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem; letter-spacing: 2px;
+  color: rgba(240,237,232,.4);
+  margin-top: 4px; text-transform: uppercase;
+}
+
+/* mode tabs */
+.mode-tabs {
+  display: flex; gap: 4px; margin-left: auto;
+  background: rgba(255,255,255,.08);
+  border-radius: 10px; padding: 3px;
+}
+.mtab {
+  padding: 6px 18px; border-radius: 7px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: .72rem; font-weight: 500;
+  color: rgba(240,237,232,.5); border: none; background: transparent;
+  cursor: pointer; transition: all .18s; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.mtab:hover { color: rgba(240,237,232,.85); }
+.mtab.active { background: #fff; color: var(--ink); font-weight: 700; }
+
+/* ══════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════ */
+.wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding: 28px 20px 72px;
+  position: relative; z-index: 1;
+}
+
+.panel { display: none; }
+.panel.active { display: block; animation: fadeUp .22s ease; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+/* ── section titles ── */
+.sec-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.8rem; font-weight: 800;
+  letter-spacing: -1.5px; margin-bottom: 4px;
+}
+.sec-sub { font-size: .72rem; color: var(--muted); margin-bottom: 20px; }
+
+/* ── control bar ── */
+.ctrl-bar {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 130px; }
+.ctrl-label {
+  font-family: 'DM Mono', monospace;
+  font-size: .6rem; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted);
+}
+select, input[type=number] {
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+  font-family: 'DM Mono', monospace; font-size: .85rem;
+  padding: 10px 12px; border-radius: 9px;
+  outline: none; transition: border-color .15s;
+  appearance: none; -webkit-appearance: none; width: 100%;
+}
+select:focus, input:focus { border-color: var(--acc); }
+select option { background: #fff; }
+
+.btn {
+  padding: 10px 26px;
+  background: var(--ink); color: #f0ede8;
+  border: none; border-radius: 9px;
+  font-family: 'Syne', sans-serif;
+  font-size: .85rem; font-weight: 700; letter-spacing: .3px;
+  cursor: pointer; transition: opacity .15s, transform .1s;
+  align-self: flex-end; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover { opacity: .82; }
+.btn:active { transform: scale(.97); }
+
+/* ══════════════════════════════════════
+   STATE BOX
+══════════════════════════════════════ */
+.state-box {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 60px 24px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 12px;
+  color: var(--muted); font-size: .85rem; text-align: center;
+}
+.state-ico { font-size: 2.4rem; }
+.spinner {
+  width: 24px; height: 24px;
+  border: 2.5px solid var(--line); border-top-color: var(--ink);
+  border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.err-msg { color: var(--up); font-size: .8rem; line-height: 1.7; }
+
+/* ══════════════════════════════════════
+   HERO TICKER (latest rate)
+══════════════════════════════════════ */
+.hero-band {
+  background: var(--ink);
+  border-radius: 14px;
+  padding: 28px 28px 26px;
+  margin-bottom: 20px;
+  color: #f0ede8;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px; align-items: end;
+  position: relative; overflow: hidden;
+}
+.hero-band::before {
+  content: '₩'; position: absolute;
+  right: -14px; top: -24px;
+  font-family: 'Syne', sans-serif; font-size: 9rem; font-weight: 800;
+  color: rgba(255,255,255,.04); user-select: none; line-height: 1;
+  pointer-events: none;
+}
+.hero-currency {
+  font-family: 'DM Mono', monospace;
+  font-size: .68rem; letter-spacing: 2.5px;
+  color: rgba(240,237,232,.45); margin-bottom: 6px;
+}
+.hero-rate {
+  font-family: 'Syne', sans-serif;
+  font-size: 3rem; font-weight: 800; line-height: 1;
+  color: #fff; letter-spacing: -2px;
+}
+.hero-unit { font-size: 1rem; font-weight: 400; color: rgba(240,237,232,.5); margin-left: 4px; }
+.hero-period {
+  font-size: .72rem; color: rgba(240,237,232,.4);
+  font-family: 'DM Mono', monospace; margin-top: 8px;
+}
+.hero-meta { text-align: right; }
+.hero-change {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; border-radius: 20px;
+  font-family: 'DM Mono', monospace; font-size: .78rem; font-weight: 500;
+  margin-bottom: 6px;
+}
+.hero-change.up   { background: rgba(212,56,13,.18); color: #ff7a59; }
+.hero-change.dn   { background: rgba(9,109,217,.18); color: #69b1ff; }
+.hero-change.flat { background: rgba(255,255,255,.08); color: rgba(240,237,232,.5); }
+.hero-minmax {
+  font-family: 'DM Mono', monospace; font-size: .68rem;
+  color: rgba(240,237,232,.4);
+}
+
+/* ══════════════════════════════════════
+   TABLE
+══════════════════════════════════════ */
+.tbl-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px; overflow: hidden;
+}
+.tbl-head-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--line);
+  flex-wrap: wrap; gap: 8px;
+}
+.tbl-count {
+  font-size: .76rem; color: var(--muted);
+}
+.tbl-count b { color: var(--ink); }
+
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: .8rem;
+}
+th {
+  background: var(--bg); padding: 10px 16px;
+  text-align: left; font-size: .65rem; font-weight: 700;
+  color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+  border-bottom: 1.5px solid var(--line); white-space: nowrap;
+}
+th.num { text-align: right; }
+td {
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(218,214,208,.5);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(26,23,20,.025); }
+
+.td-period {
+  font-family: 'DM Mono', monospace; font-size: .76rem;
+  color: var(--ink); font-weight: 500;
+}
+.td-rate {
+  font-family: 'DM Mono', monospace; font-size: .88rem;
+  font-weight: 500; text-align: right;
+}
+.td-diff {
+  font-family: 'DM Mono', monospace; font-size: .76rem;
+  text-align: right; white-space: nowrap;
+}
+.td-diff.up   { color: var(--up); }
+.td-diff.dn   { color: var(--dn); }
+.td-diff.flat { color: var(--muted); }
+
+/* ══════════════════════════════════════
+   CHART (sparkline via canvas)
+══════════════════════════════════════ */
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px; padding: 20px 22px;
+  margin-bottom: 20px;
+}
+.chart-title {
+  font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 700;
+  margin-bottom: 14px; color: var(--ink);
+}
+canvas { display: block; width: 100%; }
+
+/* ══════════════════════════════════════
+   CONVERTER
+══════════════════════════════════════ */
+.conv-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px; padding: 20px 22px;
+  margin-top: 20px;
+}
+.conv-title {
+  font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 700;
+  margin-bottom: 14px;
+}
+.conv-row {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.conv-input {
+  flex: 1; min-width: 120px;
+  background: var(--bg); border: 1.5px solid var(--line);
+  color: var(--ink); font-family: 'DM Mono', monospace; font-size: 1rem;
+  padding: 11px 14px; border-radius: 9px; outline: none;
+  transition: border-color .15s;
+}
+.conv-input:focus { border-color: var(--acc); }
+.conv-arrow {
+  font-size: 1.2rem; color: var(--muted); flex-shrink: 0;
+}
+.conv-result {
+  flex: 1; min-width: 120px;
+  background: var(--ink); color: #f0ede8;
+  font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
+  padding: 11px 14px; border-radius: 9px;
+  letter-spacing: -.3px;
+}
+.conv-note { font-size: .68rem; color: var(--muted); margin-top: 8px; }
+
+/* currency badge */
+.cur-badge {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 4px; font-family: 'DM Mono', monospace;
+  font-size: .65rem; font-weight: 500;
+  background: rgba(26,23,20,.07); color: var(--ink2);
+  margin-left: 4px;
+}
+
+@media(max-width:560px){
+  .hero-band { grid-template-columns: 1fr; }
+  .hero-rate { font-size: 2.4rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="site-header">
+  <div class="hd-inner">
+    <div class="hd-brand">
+      <h1>EXCHANGE RATE</h1>
+      <p>중소기업은행 · 월평균&amp;연평균 환율정보</p>
+    </div>
+    <div class="mode-tabs" id="modeTabs">
+      <button class="mtab active" data-panel="monthly">월평균 환율</button>
+      <button class="mtab" data-panel="yearly">연평균 환율</button>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="wrap">
+
+  <!-- ① 월평균 환율 -->
+  <div class="panel active" id="panel-monthly">
+    <div class="sec-title">월평균 환율</div>
+    <div class="sec-sub">IBK 중소기업은행 · 월별 평균 매매기준율</div>
+
+    <div class="ctrl-bar">
+      <div class="ctrl-group">
+        <div class="ctrl-label">통화</div>
+        <select id="m-cur">
+          <option value="USD">USD · 미국 달러</option>
+          <option value="EUR">EUR · 유로</option>
+          <option value="JPY">JPY · 일본 엔 (100엔)</option>
+          <option value="CNY">CNY · 중국 위안</option>
+          <option value="GBP">GBP · 영국 파운드</option>
+          <option value="AUD">AUD · 호주 달러</option>
+          <option value="CAD">CAD · 캐나다 달러</option>
+          <option value="CHF">CHF · 스위스 프랑</option>
+          <option value="HKD">HKD · 홍콩 달러</option>
+          <option value="SGD">SGD · 싱가포르 달러</option>
+          <option value="NZD">NZD · 뉴질랜드 달러</option>
+          <option value="SEK">SEK · 스웨덴 크로나</option>
+          <option value="NOK">NOK · 노르웨이 크로나</option>
+          <option value="DKK">DKK · 덴마크 크로나</option>
+          <option value="MYR">MYR · 말레이시아 링깃</option>
+          <option value="THB">THB · 태국 바트</option>
+          <option value="AED">AED · UAE 디르함</option>
+          <option value="SAR">SAR · 사우디 리얄</option>
+        </select>
+      </div>
+      <div class="ctrl-group" style="max-width:100px">
+        <div class="ctrl-label">연도</div>
+        <select id="m-year"></select>
+      </div>
+      <div class="ctrl-group" style="max-width:90px">
+        <div class="ctrl-label">개월 수</div>
+        <select id="m-count">
+          <option value="6">6개월</option>
+          <option value="12" selected>12개월</option>
+          <option value="24">24개월</option>
+          <option value="36">36개월</option>
+        </select>
+      </div>
+      <button class="btn" id="m-btn">조회</button>
+    </div>
+
+    <div id="m-result">
+      <div class="state-box"><div class="state-ico">💱</div><span>통화와 기간을 선택하고 조회하세요</span></div>
+    </div>
+  </div>
+
+  <!-- ② 연평균 환율 -->
+  <div class="panel" id="panel-yearly">
+    <div class="sec-title">연평균 환율</div>
+    <div class="sec-sub">IBK 중소기업은행 · 연도별 평균 매매기준율</div>
+
+    <div class="ctrl-bar">
+      <div class="ctrl-group">
+        <div class="ctrl-label">통화</div>
+        <select id="y-cur">
+          <option value="USD">USD · 미국 달러</option>
+          <option value="EUR">EUR · 유로</option>
+          <option value="JPY">JPY · 일본 엔 (100엔)</option>
+          <option value="CNY">CNY · 중국 위안</option>
+          <option value="GBP">GBP · 영국 파운드</option>
+          <option value="AUD">AUD · 호주 달러</option>
+          <option value="CAD">CAD · 캐나다 달러</option>
+          <option value="CHF">CHF · 스위스 프랑</option>
+          <option value="HKD">HKD · 홍콩 달러</option>
+          <option value="SGD">SGD · 싱가포르 달러</option>
+          <option value="NZD">NZD · 뉴질랜드 달러</option>
+          <option value="SEK">SEK · 스웨덴 크로나</option>
+          <option value="NOK">NOK · 노르웨이 크로나</option>
+          <option value="DKK">DKK · 덴마크 크로나</option>
+          <option value="MYR">MYR · 말레이시아 링깃</option>
+          <option value="THB">THB · 태국 바트</option>
+        </select>
+      </div>
+      <div class="ctrl-group" style="max-width:100px">
+        <div class="ctrl-label">시작연도</div>
+        <select id="y-from"></select>
+      </div>
+      <div class="ctrl-group" style="max-width:100px">
+        <div class="ctrl-label">종료연도</div>
+        <select id="y-to"></select>
+      </div>
+      <button class="btn" id="y-btn">조회</button>
+    </div>
+
+    <div id="y-result">
+      <div class="state-box"><div class="state-ico">📊</div><span>통화와 연도 범위를 선택하고 조회하세요</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const API_KEY = 'dc8294cd0177c5d51b45be29652fb691c4b18e055f22c87b0967ca1a78c7df0a';
+const BASE    = 'https://apis.data.go.kr/B190021/mmavXrtInfoInq';
+
+const CUR_FLAGS = {
+  USD:'🇺🇸', EUR:'🇪🇺', JPY:'🇯🇵', CNY:'🇨🇳', GBP:'🇬🇧',
+  AUD:'🇦🇺', CAD:'🇨🇦', CHF:'🇨🇭', HKD:'🇭🇰', SGD:'🇸🇬',
+  NZD:'🇳🇿', SEK:'🇸🇪', NOK:'🇳🇴', DKK:'🇩🇰', MYR:'🇲🇾',
+  THB:'🇹🇭', AED:'🇦🇪', SAR:'🇸🇦',
+};
+
+/* ══ populate year selects ══ */
+const now = new Date();
+const CY  = now.getFullYear();
+
+const mYearSel = document.getElementById('m-year');
+const yFromSel = document.getElementById('y-from');
+const yToSel   = document.getElementById('y-to');
+
+for (let y = CY; y >= 2000; y--) {
+  const o = (v, sel) => { const e = document.createElement('option'); e.value=v; e.textContent=v+'년'; if(sel)e.selected=true; return e; };
+  mYearSel.appendChild(o(y, y === CY));
+  yFromSel.appendChild(o(y, y === CY-4));
+  yToSel.appendChild(o(y, y === CY));
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+const fmt   = (n, dec=2) => n != null ? Number(n).toLocaleString('ko-KR', {minimumFractionDigits:dec, maximumFractionDigits:dec}) : '—';
+const fmtKR = n => n != null ? Number(n).toLocaleString('ko-KR') : '—';
+
+function loading(id) {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="spinner"></div><span>데이터를 불러오는 중…</span></div>`;
+}
+function errBox(id, msg) {
+  document.getElementById(id).innerHTML = `
+    <div class="state-box"><div class="state-ico">⚠️</div>
+    <div class="err-msg">${msg}<br>
+    <small style="color:var(--muted);font-size:.68rem">CORS 이슈 시 로컬 서버 또는 CORS 확장을 사용하세요.</small>
+    </div></div>`;
+}
+
+async function apiFetch(op, params) {
+  const qs = Object.entries(params)
+    .filter(([,v]) => v !== '')
+    .map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  const url = `${BASE}/${op}?serviceKey=${API_KEY}&resultType=json&${qs}`;
+  const res  = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  // The API may return items under different paths
+  const body = json?.response?.body ?? json?.body ?? json;
+  const items = body?.items?.item ?? body?.item ?? [];
+  const total = body?.totalCount ?? (Array.isArray(items) ? items.length : 0);
+  return { items: Array.isArray(items) ? items : [items], total };
+}
+
+/* ════════════════════════════════════════
+   SPARKLINE CHART
+════════════════════════════════════════ */
+function drawChart(canvasId, data, labels) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.offsetWidth;
+  const H   = 120;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const vals  = data.map(Number).filter(v => !isNaN(v));
+  if (vals.length < 2) return;
+  const minV  = Math.min(...vals);
+  const maxV  = Math.max(...vals);
+  const range = maxV - minV || 1;
+  const pad   = { t:12, b:24, l:8, r:8 };
+  const w     = W - pad.l - pad.r;
+  const h     = H - pad.t - pad.b;
+
+  const xOf = i => pad.l + (i / (data.length - 1)) * w;
+  const yOf = v => pad.t + (1 - (v - minV) / range) * h;
+
+  // gradient fill
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + h);
+  grad.addColorStop(0, 'rgba(26,23,20,.18)');
+  grad.addColorStop(1, 'rgba(26,23,20,.01)');
+
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = xOf(i), y = yOf(Number(v));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(xOf(data.length-1), pad.t+h);
+  ctx.lineTo(xOf(0), pad.t+h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // line
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = xOf(i), y = yOf(Number(v));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#1a1714';
+  ctx.lineWidth   = 2;
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+
+  // last dot
+  const lx = xOf(data.length-1), ly = yOf(Number(data[data.length-1]));
+  ctx.beginPath();
+  ctx.arc(lx, ly, 4, 0, Math.PI*2);
+  ctx.fillStyle = '#1a1714';
+  ctx.fill();
+
+  // x-axis labels (sparse)
+  ctx.fillStyle   = '#9a948e';
+  ctx.font        = `500 10px "DM Mono", monospace`;
+  ctx.textAlign   = 'center';
+  const step = Math.ceil(labels.length / 6);
+  labels.forEach((lb, i) => {
+    if (i % step === 0 || i === labels.length - 1) {
+      ctx.fillText(lb, xOf(i), H - 4);
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   BUILD RESULT (shared renderer)
+════════════════════════════════════════ */
+function buildResult(containerId, items, currency, periodType) {
+  if (!items.length) {
+    document.getElementById(containerId).innerHTML =
+      `<div class="state-box"><div class="state-ico">📭</div><span>데이터가 없습니다. 다른 조건을 시도해보세요.</span></div>`;
+    return;
+  }
+
+  // Sort ascending by period
+  const sorted = [...items].sort((a,b) => {
+    const ka = a.yyyymm || a.yyyy || '';
+    const kb = b.yyyymm || b.yyyy || '';
+    return ka.localeCompare(kb);
+  });
+
+  const rateKey  = 'ttseSll'; // 전신환 매도율 or use first numeric field
+  // Try to find the right rate field
+  const rateFields = ['ttseSll','fxRt','avrgXrt','avgXrt','ttbXrt','ttsXrt'];
+  let usedField = rateFields.find(f => sorted[0][f] != null && sorted[0][f] !== '') || Object.keys(sorted[0]).find(k => !isNaN(+sorted[0][k]) && +sorted[0][k] > 0);
+
+  const rates  = sorted.map(it => parseFloat(it[usedField] || it.fxRt || 0));
+  const labels = sorted.map(it => {
+    const p = it.yyyymm || it.yyyy || '';
+    return periodType === 'monthly' ? p.slice(4) + '월' : p + '년';
+  });
+
+  const latest  = rates[rates.length - 1];
+  const prev    = rates[rates.length - 2] || latest;
+  const diff    = latest - prev;
+  const diffPct = ((diff / prev) * 100).toFixed(2);
+  const minR    = Math.min(...rates.filter(v=>v>0));
+  const maxR    = Math.max(...rates.filter(v=>v>0));
+  const flag    = CUR_FLAGS[currency] || '🏳';
+  const isUp    = diff > 0.001, isDn = diff < -0.001;
+
+  // hero
+  const heroCls   = isUp ? 'up' : isDn ? 'dn' : 'flat';
+  const heroSign  = isUp ? '▲' : isDn ? '▼' : '─';
+  const latestPeriod = sorted[sorted.length-1].yyyymm || sorted[sorted.length-1].yyyy || '';
+  const periodLabel  = periodType === 'monthly'
+    ? latestPeriod.slice(0,4) + '년 ' + latestPeriod.slice(4) + '월'
+    : latestPeriod + '년';
+
+  // table rows (desc)
+  const tableRows = [...sorted].reverse().map((it, i, arr) => {
+    const r     = parseFloat(it[usedField] || it.fxRt || 0);
+    const prev2 = arr[i+1] ? parseFloat(arr[i+1][usedField] || arr[i+1].fxRt || 0) : null;
+    const d2    = prev2 ? r - prev2 : null;
+    const period = it.yyyymm || it.yyyy || '';
+    const pLabel = periodType === 'monthly'
+      ? period.slice(0,4)+'년 '+period.slice(4)+'월'
+      : period+'년';
+    let diffCell = '—';
+    if (d2 !== null && d2 !== 0) {
+      const cls2 = d2 > 0 ? 'up' : 'dn';
+      const sign2 = d2 > 0 ? '▲' : '▼';
+      diffCell = `<span class="td-diff ${cls2}">${sign2} ${fmt(Math.abs(d2))}</span>`;
+    } else if (d2 === 0) {
+      diffCell = `<span class="td-diff flat">─</span>`;
+    }
+    return `<tr>
+      <td class="td-period">${pLabel}</td>
+      <td class="td-rate">${fmt(r)} <span class="cur-badge">KRW</span></td>
+      ${diffCell !== '—' ? `<td>${diffCell}</td>` : '<td class="td-diff flat">—</td>'}
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <!-- HERO -->
+    <div class="hero-band">
+      <div>
+        <div class="hero-currency">${flag} ${currency} / KRW &nbsp;·&nbsp; ${periodLabel} 평균</div>
+        <div class="hero-rate">${fmt(latest)}<span class="hero-unit">원</span></div>
+        <div class="hero-period">${periodType === 'monthly' ? '월' : '연'}평균 매매기준율</div>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-change ${heroCls}">${heroSign} ${fmt(Math.abs(diff))} (${Math.abs(diffPct)}%)</div>
+        <div class="hero-minmax">
+          최저 ${fmt(minR)}&nbsp;&nbsp;/&nbsp;&nbsp;최고 ${fmt(maxR)}
+        </div>
+      </div>
+    </div>
+
+    <!-- CHART -->
+    <div class="chart-card">
+      <div class="chart-title">${flag} ${currency}/KRW ${periodType==='monthly'?'월':'연'}평균 환율 추이</div>
+      <canvas id="${containerId}-chart"></canvas>
+    </div>
+
+    <!-- CONVERTER -->
+    <div class="conv-card">
+      <div class="conv-title">💱 환율 변환기 <small style="font-size:.7rem;color:var(--muted);font-family:'DM Mono',monospace">기준: ${fmt(latest)}원/${currency}</small></div>
+      <div class="conv-row">
+        <input class="conv-input" id="${containerId}-convIn" type="number" value="1" min="0" step="any" placeholder="${currency} 금액"/>
+        <div class="conv-arrow">${flag} → 🇰🇷</div>
+        <div class="conv-result" id="${containerId}-convOut">—</div>
+      </div>
+      <div class="conv-note">* ${periodLabel} 평균 환율 기준 계산 (실제 환율과 다를 수 있음)</div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="tbl-card" style="margin-top:20px">
+      <div class="tbl-head-bar">
+        <div class="tbl-count">총 <b>${sorted.length}</b>개 기간 · ${periodType==='monthly'?'월':'연'}평균 매매기준율</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>기간</th>
+            <th class="num">환율 (KRW)</th>
+            <th class="num">전기 대비</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  document.getElementById(containerId).innerHTML = html;
+
+  // draw chart after DOM update
+  requestAnimationFrame(() => {
+    drawChart(`${containerId}-chart`, rates, labels);
+
+    // converter
+    const convIn  = document.getElementById(`${containerId}-convIn`);
+    const convOut = document.getElementById(`${containerId}-convOut`);
+    function updateConv() {
+      const v = parseFloat(convIn.value);
+      if (isNaN(v) || v < 0) { convOut.textContent = '—'; return; }
+      convOut.textContent = fmtKR(Math.round(v * latest)) + '원';
+    }
+    updateConv();
+    convIn.addEventListener('input', updateConv);
+  });
+}
+
+/* ════════════════════════════════════════
+   TAB
+════════════════════════════════════════ */
+document.getElementById('modeTabs').addEventListener('click', e => {
+  const tab = e.target.closest('.mtab');
+  if (!tab) return;
+  document.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+});
+
+/* ════════════════════════════════════════
+   ① 월평균 환율
+════════════════════════════════════════ */
+document.getElementById('m-btn').onclick = async () => {
+  const cur   = document.getElementById('m-cur').value;
+  const year  = document.getElementById('m-year').value;
+  const count = parseInt(document.getElementById('m-count').value);
+  loading('m-result');
+
+  try {
+    // Fetch multiple years if needed
+    const yearsNeeded = new Set();
+    for (let i = 0; i < Math.ceil(count / 12); i++) {
+      yearsNeeded.add(+year - i);
+    }
+
+    let allItems = [];
+    for (const y of yearsNeeded) {
+      try {
+        const { items } = await apiFetch('getMmavXrtInfo', {
+          aplyBgngYr: y,
+          aplyEndYr:  y,
+          curCd:      cur,
+          numOfRows:  50,
+          pageNo:     1,
+        });
+        allItems = allItems.concat(items.filter(it => it.yyyymm || it.yyyy));
+      } catch { /* skip year if no data */ }
+    }
+
+    // Keep latest `count` months
+    allItems.sort((a,b) => (a.yyyymm||'').localeCompare(b.yyyymm||''));
+    if (allItems.length > count) allItems = allItems.slice(-count);
+
+    buildResult('m-result', allItems, cur, 'monthly');
+  } catch(e) { errBox('m-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ② 연평균 환율
+════════════════════════════════════════ */
+document.getElementById('y-btn').onclick = async () => {
+  const cur  = document.getElementById('y-cur').value;
+  const from = parseInt(document.getElementById('y-from').value);
+  const to   = parseInt(document.getElementById('y-to').value);
+  if (from > to) { alert('시작연도가 종료연도보다 클 수 없습니다.'); return; }
+  loading('y-result');
+
+  try {
+    const { items } = await apiFetch('getMmavXrtInfo', {
+      aplyBgngYr: Math.min(from, to),
+      aplyEndYr:  Math.max(from, to),
+      curCd:      cur,
+      numOfRows:  50,
+      pageNo:     1,
+    });
+
+    // Group by year → average
+    const byYear = {};
+    items.forEach(it => {
+      const y = (it.yyyymm || it.yyyy || '').slice(0, 4);
+      if (!y) return;
+      const r = parseFloat(it.ttseSll || it.fxRt || 0);
+      if (!r) return;
+      if (!byYear[y]) byYear[y] = { sum: 0, cnt: 0 };
+      byYear[y].sum += r;
+      byYear[y].cnt++;
+    });
+
+    const yearlyItems = Object.entries(byYear)
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([y, {sum, cnt}]) => ({
+        yyyy: y,
+        ttseSll: (sum / cnt).toFixed(2),
+      }));
+
+    buildResult('y-result', yearlyItems, cur, 'yearly');
+  } catch(e) { errBox('y-result', e.message); }
+};
+
+/* ── resize chart on window resize ── */
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    ['m-result-chart', 'y-result-chart'].forEach(id => {
+      const c = document.getElementById(id);
+      if (c) c.dispatchEvent(new Event('resize'));
+    });
+  }, 200);
+});
+</script>
+</body>
+</html>
