@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>실시간 환율 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ════════════════════════════════════════
+   DESIGN TOKENS
+════════════════════════════════════════ */
+:root {
+  --bg:      #080c14;
+  --panel:   #0d1420;
+  --card:    #111827;
+  --border:  #1e2d45;
+  --border2: #253650;
+  --text:    #e2eaf6;
+  --text2:   #7a90b0;
+  --muted:   #3d5070;
+  --accent:  #3b82f6;
+  --green:   #22c55e;
+  --red:     #ef4444;
+  --gold:    #f59e0b;
+  --r:       12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* starfield bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,.1) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 90% 80%, rgba(34,197,94,.05) 0%, transparent 50%);
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ════════════════════════════════════════
+   HEADER
+════════════════════════════════════════ */
+.hd {
+  background: rgba(8,12,20,.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  padding: 0 20px;
+}
+.hd-inner {
+  max-width: 1120px; margin: 0 auto;
+  display: flex; align-items: center; gap: 16px;
+  height: 60px; flex-wrap: wrap;
+}
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem; letter-spacing: 3px;
+  color: #fff; flex-shrink: 0; line-height: 1;
+}
+.logo em { color: var(--accent); font-style: normal; }
+.logo-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: .55rem; letter-spacing: 2px;
+  color: var(--muted); margin-top: 2px; text-transform: uppercase;
+}
+
+.hd-right {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.date-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: .68rem; letter-spacing: 1px;
+  color: var(--text2);
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 5px 12px; border-radius: 20px;
+  white-space: nowrap;
+}
+.live-dot {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: .65rem; letter-spacing: 1.5px; color: var(--green);
+}
+.live-dot::before {
+  content: '';
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  animation: blink 1.4s step-start infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ════════════════════════════════════════
+   MAIN
+════════════════════════════════════════ */
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding: 24px 16px 64px;
+  position: relative; z-index: 1;
+}
+
+/* ── QUERY BAR ── */
+.query-bar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+}
+.qfield { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 130px; }
+.qlabel {
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text2);
+}
+input[type=text], select {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: .84rem;
+  padding: 10px 12px; border-radius: 8px;
+  outline: none; transition: border-color .15s, background .15s;
+  appearance: none; -webkit-appearance: none; width: 100%;
+}
+input:focus, select:focus { border-color: var(--accent); background: rgba(59,130,246,.06); }
+select option { background: #111827; }
+
+.btn-fetch {
+  padding: 10px 24px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 8px;
+  font-family: 'Noto Sans KR', sans-serif; font-size: .84rem; font-weight: 700;
+  cursor: pointer; transition: all .15s; white-space: nowrap; align-self: flex-end;
+  box-shadow: 0 0 20px rgba(59,130,246,.25);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-fetch:hover { background: #60a5fa; box-shadow: 0 0 28px rgba(59,130,246,.4); }
+.btn-fetch:active { transform: scale(.97); }
+
+/* search filter */
+.search-row {
+  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.search-inp {
+  flex: 1; min-width: 200px;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: .82rem;
+  padding: 9px 14px; border-radius: 8px; outline: none;
+  transition: border-color .15s;
+}
+.search-inp:focus { border-color: var(--accent); }
+.sort-btn {
+  padding: 9px 14px; border-radius: 8px;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text2); font-family: 'DM Mono', monospace; font-size: .72rem;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.sort-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sort-btn.active { background: rgba(59,130,246,.12); border-color: var(--accent); color: var(--accent); }
+
+/* ── STATE ── */
+.state-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 64px 20px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 12px;
+  color: var(--text2); font-size: .84rem; text-align: center;
+}
+.state-ico { font-size: 2.8rem; }
+.spinner {
+  width: 26px; height: 26px;
+  border: 2.5px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.err-txt { color: #f87171; line-height: 1.7; font-size: .8rem; }
+.err-hint { font-size: .68rem; color: var(--text2); line-height: 1.6; margin-top: 4px; }
+
+/* ── SUMMARY STRIP ── */
+.summary {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.sum-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 120px;
+  animation: fadeUp .3s ease both;
+}
+.sum-key {
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text2);
+}
+.sum-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem; letter-spacing: 1px; color: #fff;
+}
+.sum-val.green { color: var(--green); }
+.sum-val.red   { color: var(--red); }
+
+/* ── PINNED FAVORITES ── */
+.pin-section { margin-bottom: 20px; }
+.pin-title {
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text2); margin-bottom: 10px;
+}
+.pin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.pin-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 14px 12px;
+  position: relative; transition: border-color .18s;
+  animation: fadeUp .3s ease both;
+  cursor: default;
+}
+.pin-card:hover { border-color: var(--border2); }
+.pc-flag { font-size: 1.3rem; margin-bottom: 4px; }
+.pc-code {
+  font-family: 'DM Mono', monospace;
+  font-size: .7rem; font-weight: 500; letter-spacing: 1px; color: var(--text2);
+}
+.pc-name { font-size: .72rem; color: var(--muted); margin-bottom: 8px; line-height: 1.3; }
+.pc-rate {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.15rem; font-weight: 500; color: #fff; letter-spacing: -.5px;
+}
+.pc-sub { font-size: .62rem; color: var(--text2); margin-top: 3px; }
+.pc-badge {
+  position: absolute; top: 8px; right: 8px;
+  font-size: .55rem; font-weight: 700; padding: 2px 6px;
+  border-radius: 4px; letter-spacing: .5px;
+}
+.pc-badge.up   { background: rgba(239,68,68,.15); color: #f87171; }
+.pc-badge.dn   { background: rgba(34,197,94,.1);  color: #4ade80; }
+.pc-badge.flat { background: rgba(255,255,255,.06); color: var(--text2); }
+
+/* ── MAIN TABLE ── */
+.tbl-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden;
+}
+.tbl-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  flex-wrap: wrap; gap: 8px;
+}
+.tbl-hd-title {
+  font-family: 'DM Mono', monospace;
+  font-size: .65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text2);
+}
+.tbl-count { font-size: .72rem; color: var(--muted); }
+.tbl-count b { color: var(--text); }
+
+.data-tbl { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.data-tbl th {
+  background: var(--panel); padding: 10px 14px;
+  text-align: left; font-family: 'DM Mono', monospace;
+  font-size: .6rem; font-weight: 500; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text2);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+  cursor: pointer; user-select: none; transition: color .15s;
+}
+.data-tbl th:hover { color: var(--accent); }
+.data-tbl th.sorted { color: var(--accent); }
+.data-tbl th.num { text-align: right; }
+.data-tbl td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(30,45,69,.5);
+  vertical-align: middle;
+}
+.data-tbl tr:last-child td { border-bottom: none; }
+.data-tbl tr:hover td { background: rgba(59,130,246,.04); }
+
+.td-flag { font-size: 1.1rem; margin-right: 6px; }
+.td-code {
+  font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 500; color: var(--text);
+}
+.td-name { font-size: .72rem; color: var(--text2); margin-top: 2px; }
+.td-num {
+  font-family: 'DM Mono', monospace; font-size: .84rem; font-weight: 500;
+  text-align: right; color: var(--text);
+}
+.td-diff {
+  font-family: 'DM Mono', monospace; font-size: .72rem;
+  text-align: right; white-space: nowrap;
+}
+.td-diff.up   { color: #f87171; }
+.td-diff.dn   { color: #4ade80; }
+.td-diff.flat { color: var(--muted); }
+
+/* ── CONVERTER ── */
+.conv-section {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px; margin-top: 20px;
+}
+.conv-title {
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text2); margin-bottom: 14px;
+}
+.conv-row {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.conv-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+.conv-lbl { font-size: .68rem; color: var(--text2); }
+.conv-inp {
+  background: rgba(255,255,255,.05); border: 1px solid var(--border);
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: 1rem;
+  padding: 10px 14px; border-radius: 8px; outline: none; width: 100%;
+  transition: border-color .15s;
+}
+.conv-inp:focus { border-color: var(--accent); }
+.conv-sel {
+  background: rgba(255,255,255,.05); border: 1px solid var(--border);
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: .84rem;
+  padding: 10px 12px; border-radius: 8px; outline: none; width: 100%;
+  appearance: none; transition: border-color .15s;
+}
+.conv-sel:focus { border-color: var(--accent); }
+.conv-sel option { background: #111827; }
+.conv-arrow { font-size: 1.3rem; color: var(--text2); flex-shrink: 0; }
+.conv-result {
+  flex: 1; min-width: 140px;
+  background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.25);
+  border-radius: 8px; padding: 10px 14px;
+  font-family: 'DM Mono', monospace; font-size: 1.1rem; font-weight: 500; color: var(--accent);
+}
+.conv-note { font-size: .65rem; color: var(--muted); margin-top: 8px; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;} }
+
+@media (max-width: 580px) {
+  .pin-grid { grid-template-columns: repeat(2, 1fr); }
+  .summary  { flex-direction: row; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════ HEADER ════════ -->
+<header class="hd">
+  <div class="hd-inner">
+    <div>
+      <div class="logo">FX<em>LIVE</em></div>
+      <div class="logo-sub">한국수출입은행 · 현재환율 API</div>
+    </div>
+    <div class="hd-right">
+      <div class="date-badge" id="dateBadge">──── ─ ─</div>
+      <div class="live-dot" id="liveDot" style="display:none">LIVE</div>
+    </div>
+  </div>
+</header>
+
+<!-- ════════ MAIN ════════ -->
+<div class="wrap">
+
+  <!-- Query bar -->
+  <div class="query-bar">
+    <div class="qfield">
+      <div class="qlabel">조회 날짜</div>
+      <input type="text" id="searchDate" placeholder="YYYYMMDD (비워두면 오늘)"/>
+    </div>
+    <div class="qfield" style="max-width:180px">
+      <div class="qlabel">타입</div>
+      <select id="dataType">
+        <option value="AP01">AP01 · 환율</option>
+        <option value="AP02">AP02 · 대출금리</option>
+        <option value="AP03">AP03 · 국제금리</option>
+      </select>
+    </div>
+    <button class="btn-fetch" id="fetchBtn">📡 조회</button>
+  </div>
+
+  <!-- Result area -->
+  <div id="resultArea">
+    <div class="state-box">
+      <div class="state-ico">💹</div>
+      <span>조회 버튼을 눌러 실시간 환율을 가져오세요</span>
+      <span style="font-size:.68rem;color:var(--muted)">영업일 11시 이후 당일 데이터 제공 · 비영업일은 전 영업일 기준</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const AUTH_KEY = '2Z44pEKoHIxcXfxlHcA3MJTLBRAhK3aX';
+const BASE_URL = 'https://www.koreaexim.go.kr/site/program/financial/exchangeJSON';
+
+/* 주요 통화 고정 표시 (즐겨찾기) */
+const PINNED = ['USD','EUR','JPY','CNY','GBP','AUD','CAD','CHF'];
+
+/* 국가 플래그 매핑 */
+const FLAGS = {
+  USD:'🇺🇸', EUR:'🇪🇺', JPY:'🇯🇵', CNY:'🇨🇳', GBP:'🇬🇧', AUD:'🇦🇺',
+  CAD:'🇨🇦', CHF:'🇨🇭', HKD:'🇭🇰', SGD:'🇸🇬', NZD:'🇳🇿', SEK:'🇸🇪',
+  NOK:'🇳🇴', DKK:'🇩🇰', MYR:'🇲🇾', THB:'🇹🇭', AED:'🇦🇪', SAR:'🇸🇦',
+  KWD:'🇰🇼', BHD:'🇧🇭', IDR:'🇮🇩', PHP:'🇵🇭', INR:'🇮🇳', PKR:'🇵🇰',
+  BND:'🇧🇳', TRY:'🇹🇷', RUB:'🇷🇺', ZAR:'🇿🇦', MXN:'🇲🇽', HUF:'🇭🇺',
+  CZK:'🇨🇿', PLN:'🇵🇱', KZT:'🇰🇿', VND:'🇻🇳', TWD:'🇹🇼',
+};
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let allData    = [];
+let sortKey    = 'CUR_UNIT';
+let sortAsc    = true;
+let filterText = '';
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+(function init() {
+  // today badge
+  const now = new Date();
+  document.getElementById('dateBadge').textContent =
+    `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')} KST`;
+
+  document.getElementById('fetchBtn').onclick = fetchRates;
+  // auto fetch on load
+  fetchRates();
+})();
+
+/* ════════════════════════════════════════
+   FETCH
+════════════════════════════════════════ */
+async function fetchRates() {
+  const dateVal = document.getElementById('searchDate').value.trim();
+  const dataType = document.getElementById('dataType').value;
+
+  // 날짜 기본값: 오늘 YYYYMMDD
+  let searchDate = dateVal;
+  if (!searchDate) {
+    const d = new Date();
+    searchDate = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  document.getElementById('resultArea').innerHTML =
+    `<div class="state-box"><div class="spinner"></div><span>환율 데이터 수신 중…</span></div>`;
+  document.getElementById('liveDot').style.display = 'none';
+
+  try {
+    // CORS: 한국수출입은행 API는 JSONP/직접 호출 지원
+    // authkey는 query string으로 직접 붙임 (재인코딩 방지)
+    const url = `${BASE_URL}?authkey=${AUTH_KEY}&searchdate=${searchDate}&data=${dataType}`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    if (!Array.isArray(json) || json.length === 0) {
+      // RESULT 코드 체크
+      if (json?.[0]?.RESULT === 2) throw new Error('DATA 코드 오류');
+      if (json?.[0]?.RESULT === 3) throw new Error('인증코드 오류 — authkey를 확인하세요');
+      if (json?.[0]?.RESULT === 4) throw new Error('일일 제한 횟수 초과');
+      throw new Error('데이터가 없습니다. 영업일 11시 이후 또는 날짜를 변경해 보세요.');
+    }
+
+    // RESULT === 1 = 성공
+    const items = json.filter(it => it.RESULT === 1 || it.CUR_UNIT);
+    if (!items.length) throw new Error('유효한 환율 데이터가 없습니다.');
+
+    allData = items;
+    document.getElementById('liveDot').style.display = 'flex';
+    renderAll(searchDate, dataType);
+
+  } catch(e) {
+    document.getElementById('liveDot').style.display = 'none';
+    document.getElementById('resultArea').innerHTML = `
+      <div class="state-box">
+        <div class="state-ico">⚠️</div>
+        <div class="err-txt">${e.message}</div>
+        <div class="err-hint">
+          한국수출입은행 API는 브라우저 직접 호출 시 CORS 차단이 발생할 수 있습니다.<br>
+          VS Code Live Server · <code>python -m http.server</code> 등 로컬 서버에서 열어주세요.
+        </div>
+      </div>`;
+  }
+}
+
+/* ════════════════════════════════════════
+   PARSE HELPERS
+════════════════════════════════════════ */
+function parseRate(v) {
+  if (!v) return 0;
+  return parseFloat(String(v).replace(/,/g, '')) || 0;
+}
+
+function getFlag(code) {
+  const c = code?.split('(')[0]?.trim() || '';
+  return FLAGS[c] || '🏳';
+}
+
+function fmtRate(v, dec = 2) {
+  const n = parseFloat(String(v).replace(/,/g, ''));
+  if (isNaN(n)) return v || '—';
+  return n.toLocaleString('ko-KR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+/* ════════════════════════════════════════
+   RENDER
+════════════════════════════════════════ */
+function renderAll(date, type) {
+  const dateLabel = `${date.slice(0,4)}.${date.slice(4,6)}.${date.slice(6,8)}`;
+  const typeLabel = { AP01:'환율', AP02:'대출금리', AP03:'국제금리' }[type] || type;
+
+  /* ── Summary stats ── */
+  const deals  = allData.map(it => parseRate(it.DEAL_BAS_R)).filter(v=>v>0);
+  const avgRate = deals.length ? (deals.reduce((a,b)=>a+b,0)/deals.length).toFixed(2) : '—';
+  const maxItem = allData.reduce((a,b) => parseRate(a.DEAL_BAS_R) > parseRate(b.DEAL_BAS_R) ? a : b, allData[0]);
+  const minItem = allData.filter(it=>parseRate(it.DEAL_BAS_R)>0).reduce((a,b) => parseRate(a.DEAL_BAS_R) < parseRate(b.DEAL_BAS_R) ? a : b, allData[0]);
+
+  /* ── Pinned cards ── */
+  const pinned  = PINNED.map(code => allData.find(it => it.CUR_UNIT?.split('(')[0]?.trim() === code)).filter(Boolean);
+  const pinnedHtml = pinned.length ? `
+    <div class="pin-section">
+      <div class="pin-title">주요 통화</div>
+      <div class="pin-grid">
+        ${pinned.map((it, i) => {
+          const deal = fmtRate(it.DEAL_BAS_R);
+          const ttb  = it.TTB;
+          const tts  = it.TTS;
+          return `
+          <div class="pin-card" style="animation-delay:${i*40}ms">
+            <div class="pc-flag">${getFlag(it.CUR_UNIT)}</div>
+            <div class="pc-code">${it.CUR_UNIT}</div>
+            <div class="pc-name">${it.CUR_NM || ''}</div>
+            <div class="pc-rate">${deal}<span style="font-size:.6rem;color:var(--muted);margin-left:3px">원</span></div>
+            <div class="pc-sub">TTB ${ttb || '—'} / TTS ${tts || '—'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  /* ── Search & Sort row ── */
+  const searchRow = `
+    <div class="search-row">
+      <input class="search-inp" id="searchInp" placeholder="🔍  통화코드 또는 국가명 검색…" value="${filterText}"/>
+      <button class="sort-btn ${sortKey==='CUR_UNIT'&&sortAsc?'active':''}" data-key="CUR_UNIT">코드 ↑↓</button>
+      <button class="sort-btn ${sortKey==='DEAL_BAS_R'?'active':''}" data-key="DEAL_BAS_R">기준율 ↑↓</button>
+    </div>`;
+
+  /* ── Table ── */
+  const filtered = allData.filter(it =>
+    !filterText ||
+    it.CUR_UNIT?.toLowerCase().includes(filterText.toLowerCase()) ||
+    it.CUR_NM?.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
+    let va = a[sortKey] || '', vb = b[sortKey] || '';
+    if (sortKey === 'DEAL_BAS_R') {
+      va = parseRate(va); vb = parseRate(vb);
+    }
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  const tblRows = sorted.map((it, i) => {
+    const deal = it.DEAL_BAS_R;
+    const ttb  = it.TTB;
+    const tts  = it.TTS;
+    const bkpr = it.BKPR;
+    const kftc = it.KFTC_DEAL_BAS_R;
+
+    // DEAL_BAS_R 차이: TTS - TTB as spread indicator
+    const dealN = parseRate(deal), ttbN = parseRate(ttb), ttsN = parseRate(tts);
+    const spread = (ttsN && ttbN) ? (ttsN - ttbN).toFixed(2) : null;
+
+    return `<tr style="animation:fadeUp .25s ease both;animation-delay:${i*12}ms">
+      <td>
+        <span class="td-flag">${getFlag(it.CUR_UNIT)}</span>
+        <span class="td-code">${it.CUR_UNIT || '—'}</span>
+        <div class="td-name">${it.CUR_NM || ''}</div>
+      </td>
+      <td class="td-num">${deal ? fmtRate(deal) : '—'}</td>
+      <td class="td-num">${ttb ? fmtRate(ttb) : '—'}</td>
+      <td class="td-num">${tts ? fmtRate(tts) : '—'}</td>
+      <td class="td-num">${bkpr ? fmtRate(bkpr) : '—'}</td>
+      <td class="td-num">${kftc ? fmtRate(kftc) : '—'}</td>
+      <td class="td-num" style="color:var(--text2)">${spread ? `±${spread}` : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  /* ── Converter ── */
+  const convOptions = sorted.map(it =>
+    `<option value="${it.CUR_UNIT}">${it.CUR_UNIT} · ${it.CUR_NM || ''}</option>`
+  ).join('');
+
+  /* ── Assemble ── */
+  document.getElementById('resultArea').innerHTML = `
+    <!-- SUMMARY -->
+    <div class="summary">
+      <div class="sum-card">
+        <div class="sum-key">조회 날짜</div>
+        <div class="sum-val" style="font-size:1.1rem;font-family:'DM Mono',monospace">${dateLabel}</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-key">통화 수</div>
+        <div class="sum-val">${allData.length}</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-key">USD 기준율</div>
+        <div class="sum-val">${fmtRate(allData.find(it=>it.CUR_UNIT==='USD')?.DEAL_BAS_R||'—')}<span style="font-size:.7rem;color:var(--muted);margin-left:4px">원</span></div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-key">타입</div>
+        <div class="sum-val" style="font-size:1rem;color:var(--accent)">${typeLabel}</div>
+      </div>
+    </div>
+
+    <!-- PINNED -->
+    ${pinnedHtml}
+
+    <!-- SEARCH & SORT -->
+    ${searchRow}
+
+    <!-- TABLE -->
+    <div class="tbl-wrap">
+      <div class="tbl-hd">
+        <div class="tbl-hd-title">전체 환율 목록</div>
+        <div class="tbl-count">표시 <b>${sorted.length}</b> / 전체 <b>${allData.length}</b></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-tbl" id="mainTbl">
+          <thead><tr>
+            <th data-key="CUR_UNIT" class="${sortKey==='CUR_UNIT'?'sorted':''}">통화</th>
+            <th data-key="DEAL_BAS_R" class="num ${sortKey==='DEAL_BAS_R'?'sorted':''}">매매기준율</th>
+            <th class="num">전신환 TTB<br><span style="font-size:.55rem;font-weight:400">받을 때</span></th>
+            <th class="num">전신환 TTS<br><span style="font-size:.55rem;font-weight:400">보낼 때</span></th>
+            <th class="num">장부가격</th>
+            <th class="num">서울외환<br>중개 기준율</th>
+            <th class="num">스프레드</th>
+          </tr></thead>
+          <tbody>${tblRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONVERTER -->
+    <div class="conv-section">
+      <div class="conv-title">💱 환율 변환기</div>
+      <div class="conv-row">
+        <div class="conv-group">
+          <div class="conv-lbl">금액</div>
+          <input class="conv-inp" id="convAmt" type="number" value="1" min="0" step="any" placeholder="금액 입력"/>
+        </div>
+        <div class="conv-group">
+          <div class="conv-lbl">통화</div>
+          <select class="conv-sel" id="convCur">${convOptions}</select>
+        </div>
+        <div class="conv-arrow">→</div>
+        <div class="conv-group">
+          <div class="conv-lbl">원화 (KRW)</div>
+          <div class="conv-result" id="convResult">—</div>
+        </div>
+      </div>
+      <div class="conv-note" id="convNote">* 매매기준율 기준 계산</div>
+    </div>`;
+
+  /* ── Wire events ── */
+  // Table sort
+  document.querySelectorAll('.data-tbl th[data-key]').forEach(th => {
+    th.style.cursor = 'pointer';
+    th.onclick = () => {
+      const k = th.dataset.key;
+      if (sortKey === k) sortAsc = !sortAsc;
+      else { sortKey = k; sortAsc = true; }
+      renderAll(date, type);
+    };
+  });
+
+  // Search
+  const si = document.getElementById('searchInp');
+  si.focus();
+  si.oninput = () => { filterText = si.value; renderAll(date, type); };
+
+  // Sort chips
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.onclick = () => {
+      const k = btn.dataset.key;
+      if (sortKey === k) sortAsc = !sortAsc;
+      else { sortKey = k; sortAsc = true; }
+      renderAll(date, type);
+    };
+  });
+
+  // Converter
+  function updateConv() {
+    const amt  = parseFloat(document.getElementById('convAmt')?.value);
+    const cur  = document.getElementById('convCur')?.value;
+    const item = allData.find(it => it.CUR_UNIT === cur);
+    if (!item || isNaN(amt)) { document.getElementById('convResult').textContent = '—'; return; }
+
+    let rate = parseRate(item.DEAL_BAS_R);
+    // JPY 등 100단위 통화 처리
+    const match = cur.match(/\((\d+)\)/);
+    if (match) rate = rate / parseInt(match[1]);
+
+    const result = amt * rate;
+    document.getElementById('convResult').textContent =
+      result.toLocaleString('ko-KR', {maximumFractionDigits:0}) + '원';
+    document.getElementById('convNote').textContent =
+      `* ${item.CUR_NM || cur} 매매기준율 ${item.DEAL_BAS_R}원 기준`;
+  }
+
+  document.getElementById('convAmt')?.addEventListener('input', updateConv);
+  document.getElementById('convCur')?.addEventListener('change', updateConv);
+  updateConv();
+}
+</script>
+</body>
+</html>
