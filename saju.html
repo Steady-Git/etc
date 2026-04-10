@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사주팔자 — 운명의 여덟 기둥</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a0a00;
+    --paper: #f5ead6;
+    --gold: #c8922a;
+    --gold-light: #e8b84b;
+    --red: #8b1a1a;
+    --blue: #1a3a6b;
+    --mist: rgba(200,146,42,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Gowun Batang', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Paper texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.7;
+  }
+
+  /* Border frame */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 12px;
+    border: 2px solid var(--gold);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .corner {
+    position: fixed;
+    width: 32px; height: 32px;
+    z-index: 101;
+    pointer-events: none;
+  }
+  .corner svg { width: 100%; height: 100%; }
+  .corner.tl { top: 6px; left: 6px; }
+  .corner.tr { top: 6px; right: 6px; transform: scaleX(-1); }
+  .corner.bl { bottom: 6px; left: 6px; transform: scaleY(-1); }
+  .corner.br { bottom: 6px; right: 6px; transform: scale(-1); }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 60px 32px 80px;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    margin-bottom: 52px;
+    position: relative;
+  }
+
+  .title-deco {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 10px;
+  }
+
+  .title-deco .line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold));
+  }
+  .title-deco .line.r {
+    background: linear-gradient(to left, transparent, var(--gold));
+  }
+
+  .title-deco .icon {
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  h1 {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: clamp(2rem, 6vw, 3.4rem);
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  /* ── Form ── */
+  .form-card {
+    background: rgba(255,255,255,0.45);
+    border: 1px solid rgba(200,146,42,0.35);
+    border-radius: 4px;
+    padding: 40px 36px;
+    box-shadow: 0 4px 32px rgba(30,10,0,0.07);
+    margin-bottom: 40px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px 28px;
+  }
+
+  @media(max-width:560px){
+    .form-grid { grid-template-columns: 1fr; }
+    .form-card { padding: 28px 20px; }
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 0.78rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  input, select {
+    background: rgba(245,234,214,0.7);
+    border: 1px solid rgba(200,146,42,0.4);
+    border-radius: 2px;
+    padding: 10px 14px;
+    font-family: 'Gowun Batang', serif;
+    font-size: 1rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,146,42,0.12);
+  }
+
+  select option { background: var(--paper); }
+
+  .btn {
+    display: block;
+    width: 100%;
+    margin-top: 32px;
+    padding: 15px;
+    background: var(--ink);
+    color: var(--gold-light);
+    border: none;
+    border-radius: 2px;
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 1.15rem;
+    letter-spacing: 0.4em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(200,146,42,0.15) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+
+  .btn:hover::before { transform: translateX(100%); }
+  .btn:hover { background: #2d1200; }
+  .btn:active { transform: scale(0.99); }
+
+  /* ── Results ── */
+  #result {
+    display: none;
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-title {
+    text-align: center;
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.25em;
+    margin-bottom: 28px;
+    color: var(--gold);
+  }
+
+  /* Four Pillars table */
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--gold);
+    margin-bottom: 36px;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  @media(max-width:500px){
+    .pillars { grid-template-columns: repeat(2,1fr); }
+  }
+
+  .pillar {
+    border-right: 1px solid rgba(200,146,42,0.4);
+    text-align: center;
+    padding: 0;
+  }
+  .pillar:last-child { border-right: none; }
+
+  .pillar-label {
+    background: var(--ink);
+    color: var(--gold-light);
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    padding: 6px 4px;
+    font-weight: 700;
+  }
+
+  .pillar-sky {
+    padding: 18px 8px 10px;
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .pillar-sky-name {
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    padding-bottom: 10px;
+  }
+
+  .divider-line {
+    height: 1px;
+    background: rgba(200,146,42,0.3);
+    margin: 0 12px;
+  }
+
+  .pillar-earth {
+    padding: 10px 8px 18px;
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .pillar-earth-name {
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    padding-top: 4px;
+  }
+
+  .color-wood  { color: #2d6a1f; }
+  .color-fire  { color: var(--red); }
+  .color-earth { color: #8b6914; }
+  .color-metal { color: #5a7a8c; }
+  .color-water { color: var(--blue); }
+
+  /* Fortune sections */
+  .fortune-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  @media(max-width:560px){ .fortune-grid { grid-template-columns: 1fr; } }
+
+  .fortune-box {
+    border: 1px solid rgba(200,146,42,0.35);
+    border-radius: 3px;
+    padding: 22px 20px;
+    background: rgba(255,255,255,0.3);
+    transition: box-shadow 0.2s;
+  }
+  .fortune-box:hover { box-shadow: 0 4px 18px rgba(200,146,42,0.12); }
+
+  .fortune-box h3 {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .fortune-box p {
+    font-size: 0.92rem;
+    line-height: 1.9;
+    color: #2a150a;
+  }
+
+  .fortune-full {
+    border: 1px solid rgba(200,146,42,0.35);
+    border-radius: 3px;
+    padding: 28px 26px;
+    background: rgba(255,255,255,0.3);
+    margin-bottom: 24px;
+  }
+
+  .fortune-full h3 {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 1.05rem;
+    letter-spacing: 0.25em;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+
+  .fortune-full p {
+    font-size: 0.95rem;
+    line-height: 2;
+    color: #2a150a;
+  }
+
+  .ten-gods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .god-tag {
+    padding: 4px 12px;
+    border: 1px solid var(--gold);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    background: rgba(200,146,42,0.08);
+  }
+
+  .five-bar {
+    margin-top: 16px;
+  }
+
+  .five-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+  }
+
+  .five-row .el-name { width: 28px; font-weight: 700; }
+  .five-row .bar-bg { flex: 1; height: 8px; background: rgba(200,146,42,0.12); border-radius: 4px; overflow: hidden; }
+  .five-row .bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+  .five-row .el-pct { width: 36px; text-align: right; font-size: 0.78rem; color: var(--gold); }
+
+  .reset-btn {
+    display: block;
+    margin: 32px auto 0;
+    padding: 10px 36px;
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Gowun Batang', serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.3em;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .reset-btn:hover { background: var(--ink); color: var(--gold-light); }
+
+  /* Loading */
+  #loading {
+    display: none;
+    text-align: center;
+    padding: 48px 0;
+    font-size: 0.95rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+  }
+
+  .loading-dots span {
+    display: inline-block;
+    animation: blink 1.4s infinite;
+    font-size: 1.4rem;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%,80%,100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+
+  /* Seal decoration */
+  .seal {
+    text-align: center;
+    margin-top: 40px;
+    opacity: 0.5;
+    font-size: 0.75rem;
+    letter-spacing: 0.4em;
+    color: var(--gold);
+  }
+</style>
+</head>
+<body>
+
+<!-- Corner ornaments -->
+<div class="corner tl"><svg viewBox="0 0 32 32" fill="none"><path d="M4 28 L4 4 L28 4" stroke="#c8922a" stroke-width="2"/><circle cx="4" cy="4" r="3" fill="#c8922a"/></svg></div>
+<div class="corner tr"><svg viewBox="0 0 32 32" fill="none"><path d="M4 28 L4 4 L28 4" stroke="#c8922a" stroke-width="2"/><circle cx="4" cy="4" r="3" fill="#c8922a"/></svg></div>
+<div class="corner bl"><svg viewBox="0 0 32 32" fill="none"><path d="M4 28 L4 4 L28 4" stroke="#c8922a" stroke-width="2"/><circle cx="4" cy="4" r="3" fill="#c8922a"/></svg></div>
+<div class="corner br"><svg viewBox="0 0 32 32" fill="none"><path d="M4 28 L4 4 L28 4" stroke="#c8922a" stroke-width="2"/><circle cx="4" cy="4" r="3" fill="#c8922a"/></svg></div>
+
+<div class="page">
+
+  <header>
+    <div class="title-deco">
+      <div class="line"></div>
+      <span class="icon">☯</span>
+      <div class="line r"></div>
+    </div>
+    <h1>사주팔자</h1>
+    <p class="subtitle">四柱八字 · 운명의 여덟 기둥</p>
+  </header>
+
+  <div class="form-card" id="formSection">
+    <div class="form-grid">
+      <div class="field">
+        <label>이름</label>
+        <input type="text" id="name" placeholder="홍길동" />
+      </div>
+      <div class="field">
+        <label>성별</label>
+        <select id="gender">
+          <option value="남">남자 (男)</option>
+          <option value="여">여자 (女)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>생년월일</label>
+        <input type="date" id="birthdate" />
+      </div>
+      <div class="field">
+        <label>태어난 시간</label>
+        <select id="birthtime">
+          <option value="자">자시 (子時) 23:00–01:00</option>
+          <option value="축">축시 (丑時) 01:00–03:00</option>
+          <option value="인">인시 (寅時) 03:00–05:00</option>
+          <option value="묘">묘시 (卯時) 05:00–07:00</option>
+          <option value="진">진시 (辰時) 07:00–09:00</option>
+          <option value="사">사시 (巳時) 09:00–11:00</option>
+          <option value="오">오시 (午時) 11:00–13:00</option>
+          <option value="미">미시 (未時) 13:00–15:00</option>
+          <option value="신">신시 (申時) 15:00–17:00</option>
+          <option value="유">유시 (酉時) 17:00–19:00</option>
+          <option value="술">술시 (戌時) 19:00–21:00</option>
+          <option value="해">해시 (亥時) 21:00–23:00</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="analyze()">✦ 사주 풀어보기 ✦</button>
+  </div>
+
+  <div id="loading">
+    <div>운명의 기운을 읽는 중입니다</div>
+    <div class="loading-dots">
+      <span>●</span><span>●</span><span>●</span>
+    </div>
+  </div>
+
+  <div id="result"></div>
+
+</div>
+
+<script>
+// ── Saju Data Tables ──────────────────────────────────────────────
+const 천간 = ['갑','을','병','정','무','기','경','신','임','계'];
+const 천간한자 = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const 지지 = ['자','축','인','묘','진','사','오','미','신','유','술','해'];
+const 지지한자 = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const 천간오행 = ['목','목','화','화','토','토','금','금','수','수'];
+const 지지오행 = ['수','토','목','목','토','화','화','토','금','금','토','수'];
+const 천간음양 = ['양','음','양','음','양','음','양','음','양','음'];
+const 오행색 = { 목:'color-wood', 화:'color-fire', 토:'color-earth', 금:'color-metal', 수:'color-water' };
+const 오행한자 = { 목:'木', 화:'火', 토:'土', 금:'金', 수:'水' };
+const 오행emoji = { 목:'🌿', 화:'🔥', 토:'🌍', 금:'⚔️', 수:'💧' };
+const 오행바색 = { 목:'#2d6a1f', 화:'#8b1a1a', 토:'#8b6914', 금:'#5a7a8c', 수:'#1a3a6b' };
+const 십이지동물 = { 자:'쥐(鼠)',축:'소(牛)',인:'호랑이(虎)',묘:'토끼(兔)',진:'용(龍)',사:'뱀(蛇)',오:'말(馬)',미:'양(羊)',신:'원숭이(猴)',유:'닭(酉)',술:'개(狗)',해:'돼지(豬)' };
+
+function getSaju(year, month, day, hour시지) {
+  // Heavenly Stem + Earthly Branch for year
+  const baseYear = 1984; // 갑자년
+  const yearOffset = (year - baseYear + 600) % 60;
+  const 년천 = 천간[yearOffset % 10];
+  const 년지 = 지지[yearOffset % 12];
+
+  // Month pillar (approximate: month + year stem interaction)
+  const 월지index = (month - 1);
+  const 년천index = 천간.indexOf(년천);
+  const 월천index = ((년천index % 5) * 2 + month - 1) % 10;
+  const 월천 = 천간[월천index];
+  const 월지 = 지지[월지index < 0 ? 0 : 월지index];
+
+  // Day pillar
+  const base = new Date(1900, 0, 31); // 갑자일
+  const d = new Date(year, month - 1, day);
+  const diff = Math.round((d - base) / 86400000);
+  const dayOffset = ((diff % 60) + 60) % 60;
+  const 일천 = 천간[dayOffset % 10];
+  const 일지 = 지지[dayOffset % 12];
+
+  // Hour pillar
+  const 시지index = 지지.indexOf(hour시지);
+  const 일천index = 천간.indexOf(일천);
+  const 시천index = ((일천index % 5) * 2 + 시지index) % 10;
+  const 시천 = 천간[시천index];
+
+  return [
+    { label:'연주(年柱)', sky:년천, earth:년지, skyH:천간한자[천간.indexOf(년천)], earthH:지지한자[지지.indexOf(년지)] },
+    { label:'월주(月柱)', sky:월천, earth:월지, skyH:천간한자[천간.indexOf(월천)], earthH:지지한자[지지.indexOf(월지)] },
+    { label:'일주(日柱)', sky:일천, earth:일지, skyH:천간한자[천간.indexOf(일천)], earthH:지지한자[지지.indexOf(일지)] },
+    { label:'시주(時柱)', sky:시천, earth:hour시지, skyH:천간한자[천간.indexOf(시천)], earthH:지지한자[지지.indexOf(hour시지)] },
+  ];
+}
+
+function 오행비율(pillars) {
+  const count = { 목:0, 화:0, 토:0, 금:0, 수:0 };
+  for(const p of pillars) {
+    count[천간오행[천간.indexOf(p.sky)]]++;
+    count[지지오행[지지.indexOf(p.earth)]]++;
+  }
+  const total = Object.values(count).reduce((a,b)=>a+b,0);
+  const pct = {};
+  for(const k in count) pct[k] = Math.round(count[k]/total*100);
+  return { count, pct };
+}
+
+function 일간설명(천간명) {
+  const 설명 = {
+    갑:'갑목(甲木)은 굳건한 큰 나무의 기운입니다. 강직하고 정의로우며 리더십이 뛰어납니다.',
+    을:'을목(乙木)은 유연한 풀과 꽃의 기운입니다. 섬세하고 적응력이 강하며 예술적 감성이 풍부합니다.',
+    병:'병화(丙火)는 태양의 불꽃 기운입니다. 밝고 활동적이며 카리스마와 열정이 넘칩니다.',
+    정:'정화(丁火)는 촛불과 별빛의 기운입니다. 직관적이고 따뜻하며 내면의 빛이 강합니다.',
+    무:'무토(戊土)는 거대한 산의 기운입니다. 신뢰감 있고 포용력이 크며 중심을 잡는 힘이 있습니다.',
+    기:'기토(己土)는 비옥한 논밭의 기운입니다. 섬세하고 실용적이며 사람을 품는 덕이 있습니다.',
+    경:'경금(庚金)은 날카로운 칼날의 기운입니다. 결단력 있고 강직하며 정의를 중시합니다.',
+    신:'신금(辛金)은 보석과 귀금속의 기운입니다. 예민하고 세련되며 완벽주의적 성향이 있습니다.',
+    임:'임수(壬水)는 넓은 바다의 기운입니다. 지혜롭고 포용력이 넓으며 큰 꿈을 품습니다.',
+    계:'계수(癸水)는 맑은 샘물의 기운입니다. 총명하고 감수성이 풍부하며 신비로운 면이 있습니다.',
+  };
+  return 설명[천간명] || '';
+}
+
+async function analyze() {
+  const name = document.getElementById('name').value.trim() || '그대';
+  const gender = document.getElementById('gender').value;
+  const bd = document.getElementById('birthdate').value;
+  const time지 = document.getElementById('birthtime').value;
+
+  if (!bd) { alert('생년월일을 입력해주세요.'); return; }
+
+  const [year, month, day] = bd.split('-').map(Number);
+  const pillars = getSaju(year, month, day, time지);
+  const { count, pct } = 오행비율(pillars);
+  const 일간 = pillars[2].sky;
+  const 일간오행 = 천간오행[천간.indexOf(일간)];
+  const 지지동물 = 십이지동물[pillars[0].earth];
+  const 음양 = 천간음양[천간.indexOf(일간)];
+
+  // Build prompt for AI
+  const sajuText = pillars.map(p=>`${p.label}: 천간 ${p.skyH}(${p.sky}) 지지 ${p.earthH}(${p.earth})`).join(', ');
+  const 오행text = Object.entries(count).map(([k,v])=>`${오행한자[k]}(${k}) ${v}개`).join(', ');
+
+  const prompt = `당신은 한국 전통 사주팔자 전문가입니다. 아래 사주를 깊이 있고 구체적으로 분석해주세요.
+
+의뢰인: ${name} (${gender}성), ${year}년 ${month}월 ${day}일생
+사주: ${sajuText}
+오행 분포: ${오행text}
+일간(나): ${pillars[2].skyH}(${일간}) — ${일간오행} ${음양}
+띠: ${지지동물}
+
+다음 항목별로 분석해주세요. 각 항목은 JSON 형식으로 반환하되, 반드시 아래 키 이름을 정확히 사용하세요:
+
+{
+  "성격": "타고난 성품, 장점, 주의할 단점 (3-4문장)",
+  "건강": "건강 유의사항과 관리법 (2-3문장)",
+  "재물": "재물운과 경제적 특성 (2-3문장)",
+  "관계": "대인관계, 사랑, 가족운 (2-3문장)",
+  "직업": "적성에 맞는 직업군 (2-3문장)",
+  "총운": "전체적인 삶의 흐름과 조언 (4-5문장)"
+}
+
+JSON만 반환하고 다른 텍스트는 포함하지 마세요.`;
+
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('result').style.display = 'none';
+
+  let aiResult = {};
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content.map(i => i.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    aiResult = JSON.parse(clean);
+  } catch(e) {
+    aiResult = {
+      성격: '사주 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+      건강: '', 재물: '', 관계: '', 직업: '', 총운: ''
+    };
+  }
+
+  document.getElementById('loading').style.display = 'none';
+
+  // ── Render ──
+  const pillarHTML = pillars.map(p => {
+    const skyOh = 천간오행[천간.indexOf(p.sky)];
+    const earthOh = 지지오행[지지.indexOf(p.earth)];
+    return `
+    <div class="pillar">
+      <div class="pillar-label">${p.label}</div>
+      <div class="pillar-sky ${오행색[skyOh]}">${p.skyH}</div>
+      <div class="pillar-sky-name">${p.sky} · ${오행한자[skyOh]}</div>
+      <div class="divider-line"></div>
+      <div class="pillar-earth ${오행색[earthOh]}">${p.earthH}</div>
+      <div class="pillar-earth-name">${p.earth} · ${오행한자[earthOh]}</div>
+    </div>`;
+  }).join('');
+
+  const 오행rows = ['목','화','토','금','수'].map(el => {
+    const p = pct[el];
+    return `<div class="five-row">
+      <span class="el-name ${오행색[el]}">${오행emoji[el]}</span>
+      <div class="bar-bg"><div class="bar-fill" style="width:${p}%;background:${오행바색[el]}"></div></div>
+      <span class="el-pct">${p}%</span>
+    </div>`;
+  }).join('');
+
+  const sectionKeys = [
+    { key:'성격', icon:'🌿', title:'성품과 기질' },
+    { key:'건강', icon:'💊', title:'건강운' },
+    { key:'재물', icon:'💰', title:'재물운' },
+    { key:'관계', icon:'❤️', title:'인연과 관계' },
+    { key:'직업', icon:'⚡', title:'직업과 적성' },
+  ];
+
+  const boxesHTML = sectionKeys.map(s => `
+    <div class="fortune-box">
+      <h3>${s.icon} ${s.title}</h3>
+      <p>${aiResult[s.key] || ''}</p>
+    </div>`).join('');
+
+  document.getElementById('result').innerHTML = `
+    <p class="result-title">✦ ${name} 님의 사주 ✦</p>
+
+    <div class="pillars">${pillarHTML}</div>
+
+    <div class="fortune-grid" style="grid-template-columns:1fr;margin-bottom:0">
+      <div class="fortune-box" style="margin-bottom:20px">
+        <h3>☯ 오행 분포</h3>
+        ${오행rows}
+        <p style="margin-top:12px;font-size:0.85rem;color:#7a5030">
+          일간: <strong>${pillars[2].skyH}(${일간})</strong> · ${일간설명(일간)}
+        </p>
+      </div>
+    </div>
+
+    <div class="fortune-grid">${boxesHTML}</div>
+
+    <div class="fortune-full">
+      <h3>☸ 총운 · 삶의 흐름</h3>
+      <p>${aiResult['총운'] || ''}</p>
+    </div>
+
+    <button class="reset-btn" onclick="reset()">↺ 다시 보기</button>
+    <div class="seal">四柱八字 · 음양오행의 이치로 본 운명 · 참고용으로만 활용하세요</div>
+  `;
+
+  document.getElementById('result').style.display = 'block';
+}
+
+function reset() {
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('formSection').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
