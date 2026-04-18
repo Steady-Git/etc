@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>법령 조회 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:      #f7f5f0;
+  --paper:   #ffffff;
+  --ink:     #1c1a16;
+  --ink2:    #4a4640;
+  --muted:   #9a9590;
+  --line:    #e8e4dc;
+  --acc:     #8b1a1a;
+  --acc2:    #c4961e;
+  --green:   #1a6b3a;
+  --blue:    #1a3d6b;
+  --purple:  #4a1a6b;
+  --shadow:  0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Noto Sans KR',sans-serif;
+  min-height:100vh;
+}
+
+/* 배경 패턴 */
+body::before{
+  content:'';
+  position:fixed;inset:0;pointer-events:none;
+  background-image:repeating-linear-gradient(
+    0deg,transparent,transparent 27px,rgba(0,0,0,.025) 27px,rgba(0,0,0,.025) 28px
+  );
+  z-index:0;
+}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+
+/* ── HEADER ── */
+.site-hd{
+  background:var(--ink);
+  position:sticky;top:0;z-index:200;
+  border-bottom:3px solid var(--acc);
+}
+.hd-inner{
+  max-width:1100px;margin:0 auto;
+  padding:0 20px;height:56px;
+  display:flex;align-items:center;gap:16px;
+}
+.hd-logo{
+  font-family:'Nanum Myeongjo',serif;
+  font-size:1.15rem;font-weight:800;
+  color:#fff;letter-spacing:-0.5px;
+  white-space:nowrap;
+}
+.hd-logo em{color:var(--acc2);font-style:normal;}
+.hd-sub{
+  font-family:'DM Mono',monospace;
+  font-size:.58rem;letter-spacing:1.5px;
+  color:rgba(255,255,255,.35);text-transform:uppercase;
+  border-left:1px solid rgba(255,255,255,.15);
+  padding-left:14px;white-space:nowrap;
+}
+
+/* ── LAYOUT ── */
+.wrap{
+  max-width:1100px;margin:0 auto;
+  padding:28px 16px 80px;
+  position:relative;z-index:1;
+}
+
+/* ── TAB BAR ── */
+.tab-bar{
+  display:flex;gap:2px;flex-wrap:wrap;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:10px;padding:4px;
+  margin-bottom:20px;
+  box-shadow:var(--shadow);
+}
+.tab{
+  flex:1;min-width:100px;
+  padding:8px 6px;border:none;
+  background:transparent;
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:.72rem;font-weight:500;
+  color:var(--muted);border-radius:7px;
+  cursor:pointer;transition:all .15s;
+  white-space:nowrap;text-align:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab:hover{color:var(--ink);background:var(--bg);}
+.tab.active{
+  background:var(--ink);color:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+.tab .tab-icon{display:block;font-size:1rem;margin-bottom:2px;}
+.tab .tab-name{display:block;font-size:.65rem;}
+
+/* ── PANEL ── */
+.panel{display:none;}
+.panel.active{display:block;animation:rise .2s ease;}
+@keyframes rise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ── SEARCH CARD ── */
+.search-card{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:20px;
+  margin-bottom:18px;
+  box-shadow:var(--shadow);
+}
+.search-title{
+  font-family:'Nanum Myeongjo',serif;
+  font-size:1.05rem;font-weight:700;
+  color:var(--ink);margin-bottom:4px;
+}
+.search-desc{
+  font-size:.72rem;color:var(--muted);
+  margin-bottom:16px;line-height:1.6;
+}
+
+/* 폼 그리드 */
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:10px;margin-bottom:14px;
+}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-label{
+  font-family:'DM Mono',monospace;
+  font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--muted);
+}
+input[type=text],input[type=number],select{
+  background:var(--bg);
+  border:1.5px solid var(--line);
+  color:var(--ink);
+  font-family:'Noto Sans KR',sans-serif;font-size:.84rem;
+  padding:9px 12px;border-radius:8px;
+  outline:none;transition:border-color .15s;
+  width:100%;appearance:none;-webkit-appearance:none;
+}
+input:focus,select:focus{border-color:var(--acc);}
+select option{background:#fff;}
+
+.btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.btn{
+  padding:9px 22px;
+  background:var(--ink);color:#fff;
+  border:none;border-radius:8px;
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:.82rem;font-weight:500;
+  cursor:pointer;transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:hover{background:var(--acc);}
+.btn:active{transform:scale(.97);}
+.btn.secondary{
+  background:transparent;color:var(--ink2);
+  border:1.5px solid var(--line);
+}
+.btn.secondary:hover{border-color:var(--acc);color:var(--acc);}
+
+/* ── STATE ── */
+.state-box{
+  background:var(--paper);border:1px solid var(--line);
+  border-radius:12px;padding:56px 20px;
+  display:flex;flex-direction:column;align-items:center;
+  gap:10px;color:var(--muted);text-align:center;
+  font-size:.84rem;box-shadow:var(--shadow);
+}
+.state-box .ico{font-size:2.5rem;}
+.spinner{
+  width:24px;height:24px;
+  border:2px solid var(--line);border-top-color:var(--acc);
+  border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.err-txt{color:var(--acc);font-size:.8rem;line-height:1.7;}
+
+/* ── 결과 헤더 ── */
+.result-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;flex-wrap:wrap;gap:8px;
+}
+.result-hd-title{
+  font-family:'Nanum Myeongjo',serif;
+  font-size:.95rem;font-weight:700;color:var(--ink);
+}
+.result-count{
+  font-family:'DM Mono',monospace;
+  font-size:.68rem;color:var(--muted);
+}
+
+/* ── 결과 테이블 카드 ── */
+.result-card{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;
+  box-shadow:var(--shadow);margin-bottom:16px;
+}
+.result-table{width:100%;border-collapse:collapse;font-size:.82rem;}
+.result-table th{
+  background:var(--bg);
+  padding:10px 14px;text-align:left;
+  font-family:'DM Mono',monospace;
+  font-size:.6rem;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);border-bottom:1.5px solid var(--line);
+  white-space:nowrap;
+}
+.result-table td{
+  padding:11px 14px;
+  border-bottom:1px solid rgba(232,228,220,.6);
+  vertical-align:top;line-height:1.6;
+}
+.result-table tr:last-child td{border-bottom:none;}
+.result-table tr:hover td{background:rgba(139,26,26,.02);}
+
+/* 법령명 강조 */
+.law-name{
+  font-weight:600;color:var(--ink);
+  font-size:.88rem;
+}
+.law-link{
+  color:var(--acc);text-decoration:none;font-weight:600;
+  transition:opacity .15s;
+}
+.law-link:hover{opacity:.75;text-decoration:underline;}
+
+/* 뱃지 */
+.badge{
+  display:inline-block;
+  font-family:'DM Mono',monospace;
+  font-size:.6rem;font-weight:500;padding:2px 7px;
+  border-radius:4px;letter-spacing:.5px;white-space:nowrap;
+}
+.badge-red   {background:rgba(139,26,26,.1);color:var(--acc);}
+.badge-gold  {background:rgba(196,150,30,.1);color:#8b6d0a;}
+.badge-green {background:rgba(26,107,58,.1);color:var(--green);}
+.badge-blue  {background:rgba(26,61,107,.1);color:var(--blue);}
+.badge-purple{background:rgba(74,26,107,.1);color:var(--purple);}
+.badge-gray  {background:rgba(154,149,144,.1);color:var(--muted);}
+
+/* ── 상세 패널 (법령 내용) ── */
+.detail-overlay{
+  position:fixed;inset:0;background:rgba(28,26,22,.6);
+  z-index:500;display:none;align-items:flex-start;
+  justify-content:center;padding:24px 16px;
+  overflow-y:auto;
+}
+.detail-overlay.open{display:flex;}
+.detail-panel{
+  background:var(--paper);border-radius:14px;
+  width:100%;max-width:760px;
+  box-shadow:0 8px 48px rgba(0,0,0,.25);
+  overflow:hidden;animation:rise .25s ease;
+  margin:auto;
+}
+.detail-panel-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--line);
+  background:var(--ink);color:#fff;
+  gap:12px;
+}
+.detail-panel-hd h3{
+  font-family:'Nanum Myeongjo',serif;
+  font-size:1rem;font-weight:700;
+  line-height:1.4;
+}
+.close-btn{
+  background:rgba(255,255,255,.1);border:none;color:#fff;
+  width:30px;height:30px;border-radius:6px;
+  font-size:1rem;cursor:pointer;flex-shrink:0;
+  transition:background .15s;
+}
+.close-btn:hover{background:var(--acc);}
+.detail-body{padding:20px;max-height:75vh;overflow-y:auto;}
+.detail-row{
+  display:flex;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--line);
+}
+.detail-row:last-child{border-bottom:none;}
+.detail-key{
+  font-family:'DM Mono',monospace;font-size:.65rem;
+  letter-spacing:.8px;color:var(--muted);
+  min-width:90px;padding-top:2px;text-transform:uppercase;
+}
+.detail-val{font-size:.83rem;color:var(--ink);line-height:1.7;flex:1;}
+.detail-val a{color:var(--acc);text-decoration:none;}
+.detail-val a:hover{text-decoration:underline;}
+
+/* 페이지네이션 */
+.pagination{
+  display:flex;gap:6px;justify-content:center;
+  flex-wrap:wrap;margin-top:16px;
+}
+.page-btn{
+  padding:6px 12px;border-radius:6px;
+  background:var(--paper);border:1px solid var(--line);
+  font-family:'DM Mono',monospace;font-size:.72rem;
+  color:var(--ink2);cursor:pointer;transition:all .15s;
+}
+.page-btn:hover{border-color:var(--acc);color:var(--acc);}
+.page-btn.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+.page-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+@media(max-width:600px){
+  .tab .tab-name{display:none;}
+  .tab{min-width:40px;padding:10px 8px;}
+  .form-grid{grid-template-columns:1fr;}
+  .result-table{font-size:.75rem;}
+  .result-table td,.result-table th{padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-hd">
+  <div class="hd-inner">
+    <div class="hd-logo">법제처 <em>법령정보</em> 공유서비스</div>
+    <div class="hd-sub">국가법령정보 Open API · apis.data.go.kr</div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="wrap">
+
+  <!-- 탭바 -->
+  <div class="tab-bar" id="tabBar">
+    <button class="tab active" data-tab="law">
+      <span class="tab-icon">📜</span>
+      <span class="tab-name">법령</span>
+    </button>
+    <button class="tab" data-tab="admin">
+      <span class="tab-icon">📋</span>
+      <span class="tab-name">행정규칙</span>
+    </button>
+    <button class="tab" data-tab="local">
+      <span class="tab-icon">🏛</span>
+      <span class="tab-name">자치법규</span>
+    </button>
+    <button class="tab" data-tab="interp">
+      <span class="tab-icon">💬</span>
+      <span class="tab-name">법령해석례</span>
+    </button>
+    <button class="tab" data-tab="court">
+      <span class="tab-icon">⚖️</span>
+      <span class="tab-name">헌재결정례</span>
+    </button>
+    <button class="tab" data-tab="form">
+      <span class="tab-icon">📄</span>
+      <span class="tab-name">별표서식</span>
+    </button>
+    <button class="tab" data-tab="term">
+      <span class="tab-icon">📖</span>
+      <span class="tab-name">법령용어</span>
+    </button>
+    <button class="tab" data-tab="treaty">
+      <span class="tab-icon">🌐</span>
+      <span class="tab-name">조약</span>
+    </button>
+  </div>
+
+  <!-- ① 법령정보 -->
+  <div class="panel active" id="panel-law">
+    <div class="search-card">
+      <div class="search-title">법령정보 목록 조회</div>
+      <div class="search-desc">법률·대통령령·총리령·부령 등 법령 목록을 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">법령명 검색어</label>
+          <input type="text" id="law-query" placeholder="예: 도로교통법"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">법령 종류</label>
+          <select id="law-type">
+            <option value="">전체</option>
+            <option value="법률">법률</option>
+            <option value="대통령령">대통령령</option>
+            <option value="총리령">총리령</option>
+            <option value="부령">부령</option>
+            <option value="규칙">규칙</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">소관부처</label>
+          <input type="text" id="law-dept" placeholder="예: 국토교통부"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="law-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+            <option value="100">100건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchLaw(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('law')">초기화</button>
+      </div>
+    </div>
+    <div id="law-result"><div class="state-box"><div class="ico">📜</div><span>법령명을 입력하고 검색하세요</span></div></div>
+  </div>
+
+  <!-- ② 행정규칙 -->
+  <div class="panel" id="panel-admin">
+    <div class="search-card">
+      <div class="search-title">행정규칙정보 목록 조회</div>
+      <div class="search-desc">훈령·예규·고시·공고 등 행정규칙 목록을 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">행정규칙명 검색어</label>
+          <input type="text" id="admin-query" placeholder="예: 개인정보"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">행정규칙 종류</label>
+          <select id="admin-type">
+            <option value="">전체</option>
+            <option value="훈령">훈령</option>
+            <option value="예규">예규</option>
+            <option value="고시">고시</option>
+            <option value="공고">공고</option>
+            <option value="지침">지침</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">소관부처</label>
+          <input type="text" id="admin-dept" placeholder="예: 행정안전부"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="admin-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchAdmin(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('admin')">초기화</button>
+      </div>
+    </div>
+    <div id="admin-result"><div class="state-box"><div class="ico">📋</div><span>행정규칙명을 입력하고 검색하세요</span></div></div>
+  </div>
+
+  <!-- ③ 자치법규 -->
+  <div class="panel" id="panel-local">
+    <div class="search-card">
+      <div class="search-title">자치법규정보 목록 조회</div>
+      <div class="search-desc">지방자치단체의 조례·규칙 목록을 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">자치법규명 검색어</label>
+          <input type="text" id="local-query" placeholder="예: 청소년보호"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">자치법규 종류</label>
+          <select id="local-type">
+            <option value="">전체</option>
+            <option value="조례">조례</option>
+            <option value="규칙">규칙</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">지방자치단체</label>
+          <input type="text" id="local-org" placeholder="예: 서울특별시"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="local-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchLocal(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('local')">초기화</button>
+      </div>
+    </div>
+    <div id="local-result"><div class="state-box"><div class="ico">🏛</div><span>자치법규명을 입력하고 검색하세요</span></div></div>
+  </div>
+
+  <!-- ④ 법령해석례 -->
+  <div class="panel" id="panel-interp">
+    <div class="search-card">
+      <div class="search-title">법령해석례정보 목록 조회</div>
+      <div class="search-desc">법제처의 법령해석 사례를 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">검색어</label>
+          <input type="text" id="interp-query" placeholder="예: 근로기준법"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">회신기관</label>
+          <input type="text" id="interp-org" placeholder="예: 법제처"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="interp-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchInterp(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('interp')">초기화</button>
+      </div>
+    </div>
+    <div id="interp-result"><div class="state-box"><div class="ico">💬</div><span>검색어를 입력하고 검색하세요</span></div></div>
+  </div>
+
+  <!-- ⑤ 헌재결정례 -->
+  <div class="panel" id="panel-court">
+    <div class="search-card">
+      <div class="search-title">헌재결정례정보 목록 조회</div>
+      <div class="search-desc">헌법재판소 결정례를 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">검색어</label>
+          <input type="text" id="court-query" placeholder="예: 표현의 자유"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">사건번호</label>
+          <input type="text" id="court-case" placeholder="예: 2021헌바"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="court-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchCourt(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('court')">초기화</button>
+      </div>
+    </div>
+    <div id="court-result"><div class="state-box"><div class="ico">⚖️</div><span>검색어를 입력하고 검색하세요</span></div></div>
+  </div>
+
+  <!-- ⑥ 별표서식 -->
+  <div class="panel" id="panel-form">
+    <div class="search-card">
+      <div class="search-title">별표서식정보 목록 조회</div>
+      <div class="search-desc">법령에 포함된 별표·별지 서식을 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">법령명 또는 서식명</label>
+          <input type="text" id="form-query" placeholder="예: 신청서"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">서식 종류</label>
+          <select id="form-type">
+            <option value="">전체</option>
+            <option value="별표">별표</option>
+            <option value="별지">별지</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="form-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchForm(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('form')">초기화</button>
+      </div>
+    </div>
+    <div id="form-result"><div class="state-box"><div class="ico">📄</div><span>검색어를 입력하고 검색하세요</span></div></div>
+  </div>
+
+  <!-- ⑦ 법령용어 -->
+  <div class="panel" id="panel-term">
+    <div class="search-card">
+      <div class="search-title">법령용어정보 목록 조회</div>
+      <div class="search-desc">법령에서 사용되는 용어의 정의를 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">용어 검색어</label>
+          <input type="text" id="term-query" placeholder="예: 근로자"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="term-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchTerm(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('term')">초기화</button>
+      </div>
+    </div>
+    <div id="term-result"><div class="state-box"><div class="ico">📖</div><span>찾고 싶은 법령 용어를 입력하세요</span></div></div>
+  </div>
+
+  <!-- ⑧ 조약 -->
+  <div class="panel" id="panel-treaty">
+    <div class="search-card">
+      <div class="search-title">조약정보 목록 조회</div>
+      <div class="search-desc">대한민국이 체결한 국제조약 목록을 검색합니다.</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">조약명 검색어</label>
+          <input type="text" id="treaty-query" placeholder="예: 자유무역협정"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">체약국</label>
+          <input type="text" id="treaty-country" placeholder="예: 미국"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">조회 건수</label>
+          <select id="treaty-rows">
+            <option value="10">10건</option>
+            <option value="20" selected>20건</option>
+            <option value="50">50건</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="searchTreaty(1)">🔍 검색</button>
+        <button class="btn secondary" onclick="clearForm('treaty')">초기화</button>
+      </div>
+    </div>
+    <div id="treaty-result"><div class="state-box"><div class="ico">🌐</div><span>조약명을 입력하고 검색하세요</span></div></div>
+  </div>
+
+</div><!-- wrap -->
+
+<!-- 상세보기 오버레이 -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-panel">
+    <div class="detail-panel-hd">
+      <h3 id="detailTitle">상세 정보</h3>
+      <button class="close-btn" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const API_KEY = 'dc8294cd0177c5d51b45be29652fb691c4b18e055f22c87b0967ca1a78c7df0a';
+const BASE    = 'https://apis.data.go.kr/1170000/law';
+
+/* ════════════════════════════════════════
+   TAB
+════════════════════════════════════════ */
+document.getElementById('tabBar').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+});
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function loading(id) {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="spinner"></div><span>데이터를 불러오는 중…</span></div>`;
+}
+
+function errBox(id, msg) {
+  document.getElementById(id).innerHTML =
+    `<div class="state-box"><div class="ico">⚠️</div>
+     <div class="err-txt">${msg}</div>
+     <small style="color:var(--muted);font-size:.68rem">CORS 이슈 시 로컬 서버(VS Code Live Server 등)에서 열어주세요.</small>
+     </div>`;
+}
+
+async function apiFetch(endpoint, params) {
+  const qs = Object.entries(params)
+    .filter(([,v]) => v !== '' && v !== null && v !== undefined)
+    .map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  const url = `${BASE}/${endpoint}?serviceKey=${API_KEY}&${qs}`;
+  const res  = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const xml  = new DOMParser().parseFromString(text, 'text/xml');
+  const rc   = xml.querySelector('resultCode')?.textContent?.trim();
+  if (rc && rc !== '00') {
+    const rm = xml.querySelector('resultMsg')?.textContent?.trim() || '알 수 없는 오류';
+    throw new Error(`API 오류 [${rc}]: ${rm}`);
+  }
+  return xml;
+}
+
+function getXmlText(el, tag) {
+  return el.querySelector(tag)?.textContent?.trim() ?? '—';
+}
+
+function getAll(xml, tag) {
+  return Array.from(xml.querySelectorAll(tag));
+}
+
+function getTotalCount(xml) {
+  return parseInt(xml.querySelector('totalCnt')?.textContent?.trim() ?? '0');
+}
+
+/* 날짜 포맷 YYYYMMDD → YYYY.MM.DD */
+function fmtDate(s) {
+  if (!s || s === '—' || s.length < 8) return s;
+  return `${s.slice(0,4)}.${s.slice(4,6)}.${s.slice(6,8)}`;
+}
+
+/* 페이지네이션 HTML */
+function paginationHtml(total, current, rows, onClickFn) {
+  const totalPages = Math.ceil(total / rows);
+  if (totalPages <= 1) return '';
+  const pages = [];
+  const around = 2;
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || Math.abs(p - current) <= around) {
+      pages.push(p);
+    } else if (pages[pages.length-1] !== '…') {
+      pages.push('…');
+    }
+  }
+  const btns = pages.map(p =>
+    p === '…'
+      ? `<span class="page-btn" style="pointer-events:none;border:none;color:var(--muted)">…</span>`
+      : `<button class="page-btn ${p===current?'active':''}" onclick="${onClickFn}(${p})">${p}</button>`
+  ).join('');
+  return `<div class="pagination">${btns}</div>`;
+}
+
+/* 상세보기 */
+function openDetail(title, rows) {
+  document.getElementById('detailTitle').textContent = title;
+  document.getElementById('detailBody').innerHTML = rows.map(([k,v]) =>
+    v && v !== '—' ? `<div class="detail-row">
+      <div class="detail-key">${k}</div>
+      <div class="detail-val">${v}</div>
+    </div>` : ''
+  ).join('');
+  document.getElementById('detailOverlay').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+}
+
+document.getElementById('detailOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('detailOverlay')) closeDetail();
+});
+
+function clearForm(prefix) {
+  document.querySelectorAll(`#panel-${prefix} input`).forEach(el => el.value = '');
+  document.querySelectorAll(`#panel-${prefix} select`).forEach(el => el.selectedIndex = 0);
+}
+
+/* ════════════════════════════════════════
+   ① 법령정보 목록 조회
+   오퍼레이션: getLawList
+════════════════════════════════════════ */
+window.searchLaw = async function(page = 1) {
+  const query = document.getElementById('law-query').value.trim();
+  const type  = document.getElementById('law-type').value;
+  const dept  = document.getElementById('law-dept').value.trim();
+  const rows  = +document.getElementById('law-rows').value;
+  loading('law-result');
+  try {
+    const xml = await apiFetch('getLawList', {
+      query, type, department: dept,
+      display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('law-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const typeColors = {법률:'badge-red',대통령령:'badge-gold',총리령:'badge-green',부령:'badge-blue'};
+
+    const rows_html = items.map(it => {
+      const name    = getXmlText(it, '법령명한글');
+      const ltype   = getXmlText(it, '법령종류명');
+      const dept2   = getXmlText(it, '소관부처명');
+      const pubDate = fmtDate(getXmlText(it, '공포일자'));
+      const effDate = fmtDate(getXmlText(it, '시행일자'));
+      const pubNum  = getXmlText(it, '공포번호');
+      const mst     = getXmlText(it, '법령MST');
+      const bc      = typeColors[ltype] || 'badge-gray';
+      return `<tr>
+        <td><span class="law-name">${name}</span></td>
+        <td><span class="badge ${bc}">${ltype}</span></td>
+        <td style="font-size:.78rem;color:var(--ink2)">${dept2}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${pubDate}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${effDate}</td>
+        <td><button class="btn secondary" style="padding:4px 10px;font-size:.7rem"
+          onclick='openDetail("${name.replace(/"/g,"&quot;")}", [
+            ["법령명",\`${name}\`],["법령종류",\`${ltype}\`],["소관부처",\`${dept2}\`],
+            ["공포일자",\`${pubDate}\`],["시행일자",\`${effDate}\`],["공포번호",\`${pubNum}\`],
+            ["법령MST",\`${mst}\`],
+            ["국가법령정보센터",\`<a href="https://www.law.go.kr/lsInfoP.do?lsiSeq=${mst}" target="_blank">바로가기 →</a>\`]
+          ])'>상세</button></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('law-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">법령 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건 · ${page}/${Math.ceil(total/rows)}페이지</div>
+      </div>
+      <div class="result-card">
+        <div style="overflow-x:auto">
+          <table class="result-table">
+            <thead><tr>
+              <th>법령명</th><th>종류</th><th>소관부처</th><th>공포일</th><th>시행일</th><th></th>
+            </tr></thead>
+            <tbody>${rows_html}</tbody>
+          </table>
+        </div>
+      </div>
+      ${paginationHtml(total, page, rows, 'searchLaw')}`;
+  } catch(e) { errBox('law-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ② 행정규칙정보 목록 조회
+   오퍼레이션: getAdminRulList
+════════════════════════════════════════ */
+window.searchAdmin = async function(page = 1) {
+  const query = document.getElementById('admin-query').value.trim();
+  const type  = document.getElementById('admin-type').value;
+  const dept  = document.getElementById('admin-dept').value.trim();
+  const rows  = +document.getElementById('admin-rows').value;
+  loading('admin-result');
+  try {
+    const xml = await apiFetch('getAdminRulList', {
+      query, type, department: dept,
+      display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('admin-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const typeColors = {훈령:'badge-red',예규:'badge-gold',고시:'badge-green',공고:'badge-blue',지침:'badge-purple'};
+    const rows_html = items.map(it => {
+      const name  = getXmlText(it, '행정규칙명');
+      const atype = getXmlText(it, '행정규칙종류명');
+      const dept2 = getXmlText(it, '소관부처명');
+      const date  = fmtDate(getXmlText(it, '발령일자'));
+      const num   = getXmlText(it, '발령번호');
+      const mst   = getXmlText(it, '행정규칙MST');
+      const bc    = typeColors[atype] || 'badge-gray';
+      return `<tr>
+        <td><span class="law-name">${name}</span></td>
+        <td><span class="badge ${bc}">${atype}</span></td>
+        <td style="font-size:.78rem;color:var(--ink2)">${dept2}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${date}</td>
+        <td><button class="btn secondary" style="padding:4px 10px;font-size:.7rem"
+          onclick='openDetail("${name.replace(/"/g,"&quot;")}",[
+            ["행정규칙명",\`${name}\`],["종류",\`${atype}\`],["소관부처",\`${dept2}\`],
+            ["발령일자",\`${date}\`],["발령번호",\`${num}\`],["MST",\`${mst}\`]
+          ])'>상세</button></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('admin-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">행정규칙 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건</div>
+      </div>
+      <div class="result-card"><div style="overflow-x:auto">
+        <table class="result-table"><thead><tr>
+          <th>행정규칙명</th><th>종류</th><th>소관부처</th><th>발령일</th><th></th>
+        </tr></thead><tbody>${rows_html}</tbody></table>
+      </div></div>
+      ${paginationHtml(total, page, rows, 'searchAdmin')}`;
+  } catch(e) { errBox('admin-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ③ 자치법규정보 목록 조회
+   오퍼레이션: getLclRulList
+════════════════════════════════════════ */
+window.searchLocal = async function(page = 1) {
+  const query = document.getElementById('local-query').value.trim();
+  const type  = document.getElementById('local-type').value;
+  const org   = document.getElementById('local-org').value.trim();
+  const rows  = +document.getElementById('local-rows').value;
+  loading('local-result');
+  try {
+    const xml = await apiFetch('getLclRulList', {
+      query, type, organization: org,
+      display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('local-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const rows_html = items.map(it => {
+      const name  = getXmlText(it, '자치법규명');
+      const ltype = getXmlText(it, '자치법규종류명');
+      const org2  = getXmlText(it, '자치단체명');
+      const date  = fmtDate(getXmlText(it, '공포일자'));
+      const mst   = getXmlText(it, '자치법규MST');
+      const bc    = ltype === '조례' ? 'badge-green' : 'badge-blue';
+      return `<tr>
+        <td><span class="law-name">${name}</span></td>
+        <td><span class="badge ${bc}">${ltype}</span></td>
+        <td style="font-size:.78rem;color:var(--ink2)">${org2}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${date}</td>
+        <td><button class="btn secondary" style="padding:4px 10px;font-size:.7rem"
+          onclick='openDetail("${name.replace(/"/g,"&quot;")}",[
+            ["자치법규명",\`${name}\`],["종류",\`${ltype}\`],["자치단체",\`${org2}\`],
+            ["공포일자",\`${date}\`],["MST",\`${mst}\`]
+          ])'>상세</button></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('local-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">자치법규 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건</div>
+      </div>
+      <div class="result-card"><div style="overflow-x:auto">
+        <table class="result-table"><thead><tr>
+          <th>자치법규명</th><th>종류</th><th>자치단체</th><th>공포일</th><th></th>
+        </tr></thead><tbody>${rows_html}</tbody></table>
+      </div></div>
+      ${paginationHtml(total, page, rows, 'searchLocal')}`;
+  } catch(e) { errBox('local-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ④ 법령해석례정보 목록 조회
+   오퍼레이션: getLawIttrnList
+════════════════════════════════════════ */
+window.searchInterp = async function(page = 1) {
+  const query = document.getElementById('interp-query').value.trim();
+  const org   = document.getElementById('interp-org').value.trim();
+  const rows  = +document.getElementById('interp-rows').value;
+  loading('interp-result');
+  try {
+    const xml = await apiFetch('getLawIttrnList', {
+      query, organization: org,
+      display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('interp-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const rows_html = items.map(it => {
+      const title  = getXmlText(it, '제목');
+      const org2   = getXmlText(it, '회신기관명');
+      const date   = fmtDate(getXmlText(it, '회신일자'));
+      const lawNm  = getXmlText(it, '관련법령명');
+      const caseNo = getXmlText(it, '안건번호');
+      return `<tr>
+        <td><span class="law-name">${title}</span>
+          ${lawNm !== '—' ? `<div style="font-size:.72rem;color:var(--muted);margin-top:3px">관련법령: ${lawNm}</div>` : ''}
+        </td>
+        <td style="font-size:.78rem;color:var(--ink2)">${org2}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${date}</td>
+        <td><button class="btn secondary" style="padding:4px 10px;font-size:.7rem"
+          onclick='openDetail("${title.replace(/"/g,"&quot;").slice(0,30)}...",[
+            ["제목",\`${title}\`],["회신기관",\`${org2}\`],["회신일자",\`${date}\`],
+            ["안건번호",\`${caseNo}\`],["관련법령",\`${lawNm}\`]
+          ])'>상세</button></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('interp-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">법령해석례 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건</div>
+      </div>
+      <div class="result-card"><div style="overflow-x:auto">
+        <table class="result-table"><thead><tr>
+          <th>제목</th><th>회신기관</th><th>회신일자</th><th></th>
+        </tr></thead><tbody>${rows_html}</tbody></table>
+      </div></div>
+      ${paginationHtml(total, page, rows, 'searchInterp')}`;
+  } catch(e) { errBox('interp-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ⑤ 헌재결정례정보 목록 조회
+   오퍼레이션: getConDeciList
+════════════════════════════════════════ */
+window.searchCourt = async function(page = 1) {
+  const query   = document.getElementById('court-query').value.trim();
+  const caseNo  = document.getElementById('court-case').value.trim();
+  const rows    = +document.getElementById('court-rows').value;
+  loading('court-result');
+  try {
+    const xml = await apiFetch('getConDeciList', {
+      query, caseNumber: caseNo,
+      display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('court-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const rows_html = items.map(it => {
+      const title  = getXmlText(it, '사건명');
+      const cnum   = getXmlText(it, '사건번호');
+      const date   = fmtDate(getXmlText(it, '선고일자'));
+      const result = getXmlText(it, '결정결과');
+      const bc     = result === '위헌' ? 'badge-red' : result === '합헌' ? 'badge-blue' : 'badge-gray';
+      return `<tr>
+        <td>
+          <span class="law-name">${title}</span>
+          <div style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);margin-top:2px">${cnum}</div>
+        </td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${date}</td>
+        <td><span class="badge ${bc}">${result}</span></td>
+        <td><button class="btn secondary" style="padding:4px 10px;font-size:.7rem"
+          onclick='openDetail("${title.replace(/"/g,"&quot;")}",[
+            ["사건명",\`${title}\`],["사건번호",\`${cnum}\`],
+            ["선고일자",\`${date}\`],["결정결과",\`${result}\`]
+          ])'>상세</button></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('court-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">헌재결정례 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건</div>
+      </div>
+      <div class="result-card"><div style="overflow-x:auto">
+        <table class="result-table"><thead><tr>
+          <th>사건명</th><th>선고일자</th><th>결정결과</th><th></th>
+        </tr></thead><tbody>${rows_html}</tbody></table>
+      </div></div>
+      ${paginationHtml(total, page, rows, 'searchCourt')}`;
+  } catch(e) { errBox('court-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ⑥ 별표서식정보 목록 조회
+   오퍼레이션: getFormList
+════════════════════════════════════════ */
+window.searchForm = async function(page = 1) {
+  const query = document.getElementById('form-query').value.trim();
+  const type  = document.getElementById('form-type').value;
+  const rows  = +document.getElementById('form-rows').value;
+  loading('form-result');
+  try {
+    const xml = await apiFetch('getFormList', {
+      query, type,
+      display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('form-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const rows_html = items.map(it => {
+      const title  = getXmlText(it, '서식제목');
+      const lawNm  = getXmlText(it, '법령명한글');
+      const ftype  = getXmlText(it, '서식종류명');
+      const date   = fmtDate(getXmlText(it, '발령일자'));
+      const fileUrl= getXmlText(it, '파일URL');
+      const bc     = ftype === '별표' ? 'badge-gold' : 'badge-green';
+      return `<tr>
+        <td>
+          <span class="law-name">${title}</span>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:3px">${lawNm}</div>
+        </td>
+        <td><span class="badge ${bc}">${ftype}</span></td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${date}</td>
+        <td>${fileUrl !== '—' ? `<a class="law-link" href="${fileUrl}" target="_blank">다운로드↗</a>` : '—'}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('form-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">별표서식 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건</div>
+      </div>
+      <div class="result-card"><div style="overflow-x:auto">
+        <table class="result-table"><thead><tr>
+          <th>서식명</th><th>종류</th><th>발령일</th><th>파일</th>
+        </tr></thead><tbody>${rows_html}</tbody></table>
+      </div></div>
+      ${paginationHtml(total, page, rows, 'searchForm')}`;
+  } catch(e) { errBox('form-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ⑦ 법령용어정보 목록 조회
+   오퍼레이션: getLawTermList
+════════════════════════════════════════ */
+window.searchTerm = async function(page = 1) {
+  const query = document.getElementById('term-query').value.trim();
+  const rows  = +document.getElementById('term-rows').value;
+  if (!query) { alert('용어를 입력하세요'); return; }
+  loading('term-result');
+  try {
+    const xml = await apiFetch('getLawTermList', {
+      query, display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('term-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const rows_html = items.map(it => {
+      const term   = getXmlText(it, '용어명');
+      const def    = getXmlText(it, '용어정의');
+      const lawNm  = getXmlText(it, '법령명한글');
+      return `<tr>
+        <td style="min-width:100px"><span class="law-name" style="color:var(--acc)">${term}</span></td>
+        <td style="line-height:1.7;font-size:.82rem">${def}</td>
+        <td style="font-size:.75rem;color:var(--muted)">${lawNm}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('term-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">법령용어 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건</div>
+      </div>
+      <div class="result-card"><div style="overflow-x:auto">
+        <table class="result-table"><thead><tr>
+          <th>용어</th><th>정의</th><th>출처 법령</th>
+        </tr></thead><tbody>${rows_html}</tbody></table>
+      </div></div>
+      ${paginationHtml(total, page, rows, 'searchTerm')}`;
+  } catch(e) { errBox('term-result', e.message); }
+};
+
+/* ════════════════════════════════════════
+   ⑧ 조약정보 목록 조회
+   오퍼레이션: getTreatyList
+════════════════════════════════════════ */
+window.searchTreaty = async function(page = 1) {
+  const query   = document.getElementById('treaty-query').value.trim();
+  const country = document.getElementById('treaty-country').value.trim();
+  const rows    = +document.getElementById('treaty-rows').value;
+  loading('treaty-result');
+  try {
+    const xml = await apiFetch('getTreatyList', {
+      query, country, display: rows, page,
+    });
+    const items = getAll(xml, 'item');
+    const total = getTotalCount(xml);
+    if (!items.length) {
+      document.getElementById('treaty-result').innerHTML =
+        `<div class="state-box"><div class="ico">📭</div><span>검색 결과가 없습니다</span></div>`; return;
+    }
+    const rows_html = items.map(it => {
+      const title   = getXmlText(it, '조약명');
+      const country2= getXmlText(it, '체약국');
+      const signDate= fmtDate(getXmlText(it, '서명일자'));
+      const effDate = fmtDate(getXmlText(it, '발효일자'));
+      const tnum    = getXmlText(it, '조약번호');
+      const category= getXmlText(it, '분야');
+      return `<tr>
+        <td>
+          <span class="law-name">${title}</span>
+          ${category !== '—' ? `<div style="font-size:.7rem;color:var(--muted);margin-top:2px">${category}</div>` : ''}
+        </td>
+        <td style="font-size:.78rem;color:var(--ink2)">${country2}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${signDate}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:.75rem;color:var(--muted)">${effDate}</td>
+        <td><button class="btn secondary" style="padding:4px 10px;font-size:.7rem"
+          onclick='openDetail("${title.replace(/"/g,"&quot;")}",[
+            ["조약명",\`${title}\`],["체약국",\`${country2}\`],["조약번호",\`${tnum}\`],
+            ["서명일자",\`${signDate}\`],["발효일자",\`${effDate}\`],["분야",\`${category}\`]
+          ])'>상세</button></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('treaty-result').innerHTML = `
+      <div class="result-hd">
+        <div class="result-hd-title">조약 목록</div>
+        <div class="result-count">총 <b>${total.toLocaleString()}</b>건</div>
+      </div>
+      <div class="result-card"><div style="overflow-x:auto">
+        <table class="result-table"><thead><tr>
+          <th>조약명</th><th>체약국</th><th>서명일</th><th>발효일</th><th></th>
+        </tr></thead><tbody>${rows_html}</tbody></table>
+      </div></div>
+      ${paginationHtml(total, page, rows, 'searchTreaty')}`;
+  } catch(e) { errBox('treaty-result', e.message); }
+};
+
+/* Enter 키 검색 */
+document.querySelectorAll('input[type=text]').forEach(inp => {
+  inp.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const tab = document.querySelector('.tab.active')?.dataset?.tab;
+    const fnMap = {
+      law:'searchLaw', admin:'searchAdmin', local:'searchLocal',
+      interp:'searchInterp', court:'searchCourt', form:'searchForm',
+      term:'searchTerm', treaty:'searchTreaty'
+    };
+    if (fnMap[tab]) window[fnMap[tab]](1);
+  });
+});
+</script>
+</body>
+</html>
