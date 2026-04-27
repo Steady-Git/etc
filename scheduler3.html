@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>스케줄러</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:      #f7f5f0;
+      --surface: #ffffff;
+      --ink:     #1c1c1e;
+      --ink2:    #48484a;
+      --muted:   #8e8e93;
+      --line:    #e5e5ea;
+      --red:     #d0021b;
+      --blue:    #1a56db;
+      --gold:    #b8860b;
+      --amber:   #f5a623;
+      --radius:  12px;
+      --shadow:  0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.05);
+    }
+    *,*::before,*::after { box-sizing: border-box; margin:0; padding:0; }
+    html { font-size:16px; -webkit-text-size-adjust:100%; }
+    body { background:var(--bg); color:var(--ink); font-family:'Noto Sans KR',sans-serif; min-height:100dvh; }
+
+    /* ── HEADER ── */
+    .app-header { background:var(--ink); color:#fff; padding:14px 16px 0; position:sticky; top:0; z-index:200; }
+    .header-top { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:10px; }
+    .app-title { font-size:.95rem; font-weight:700; letter-spacing:-.3px; }
+    .app-subtitle { font-family:'DM Mono',monospace; font-size:.58rem; color:rgba(255,255,255,.4); letter-spacing:1.5px; margin-top:2px; }
+
+    /* ── TAB ── */
+    .tab-bar { display:flex; border-top:1px solid rgba(255,255,255,.08); padding:0 16px; }
+    .tab-btn {
+      padding:9px 20px 8px;
+      font-family:'DM Mono',monospace; font-size:.7rem; letter-spacing:1px;
+      color:rgba(255,255,255,.4); background:transparent; border:none;
+      border-bottom:2px solid transparent; cursor:pointer; transition:all .15s; white-space:nowrap;
+    }
+    .tab-btn.active { color:var(--amber); border-bottom-color:var(--amber); }
+
+    /* ── BODY ── */
+    .app-body { max-width:860px; margin:0 auto; padding:16px 14px 60px; }
+    .view { display:none; }
+    .view.active { display:block; }
+
+    /* ── NAV HEADER ── */
+    .nav-header {
+      display:flex; align-items:center; justify-content:space-between;
+      background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:12px 18px; margin-bottom:16px;
+    }
+    .nav-btn {
+      width:36px; height:36px; border:none; background:var(--bg);
+      border-radius:50%; font-size:1rem; cursor:pointer; color:var(--ink2);
+      display:flex; align-items:center; justify-content:center; transition:background .15s;
+    }
+    .nav-btn:hover { background:var(--line); }
+    .nav-center { text-align:center; flex:1; }
+    .nav-main { font-family:'DM Mono',monospace; font-size:.88rem; font-weight:600; color:var(--ink); letter-spacing:1px; }
+    .nav-sub { font-family:'DM Mono',monospace; font-size:.58rem; color:var(--muted); letter-spacing:1px; margin-top:3px; }
+
+    /* ── TASK AREA ── */
+    .task-input-wrap { display:flex; flex-direction:column; gap:4px; }
+    .task-item { display:flex; align-items:flex-start; gap:6px; }
+    .task-cb { width:14px; height:14px; flex-shrink:0; margin-top:3px; accent-color:var(--gold); cursor:pointer; }
+    .task-text {
+      flex:1; border:none; background:transparent;
+      font-family:'Noto Sans KR',sans-serif; font-size:.78rem; color:var(--ink);
+      outline:none; padding:1px 0; border-bottom:1px solid transparent;
+      transition:border-color .15s; resize:none; overflow:hidden; line-height:1.5;
+    }
+    .task-text:focus { border-bottom-color:var(--gold); }
+    .task-text.done { text-decoration:line-through; color:var(--muted); }
+    .task-del {
+      flex-shrink:0; background:none; border:none; cursor:pointer;
+      color:var(--muted); font-size:.65rem; opacity:0; transition:opacity .15s; padding:2px 0; line-height:1;
+    }
+    .task-item:hover .task-del { opacity:1; }
+    .add-task-btn {
+      background:none; border:1px dashed var(--line); border-radius:6px;
+      width:100%; padding:5px; font-family:'Noto Sans KR',sans-serif;
+      font-size:.65rem; color:var(--muted); cursor:pointer; text-align:center;
+      transition:all .15s; margin-top:4px;
+    }
+    .add-task-btn:hover { border-color:var(--gold); color:var(--gold); background:#fffbf0; }
+
+    /* ════════════════════════════════════════
+       단기 — 주간 카드 (월~일)
+    ════════════════════════════════════════ */
+    .week-cards { display:flex; flex-direction:column; gap:10px; }
+    .day-card {
+      background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow);
+      display:flex; overflow:hidden;
+    }
+    .day-card.today { box-shadow:0 0 0 2.5px var(--gold), var(--shadow); }
+    .day-card-aside {
+      width:72px; flex-shrink:0;
+      background:var(--bg); border-right:1.5px solid var(--line);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding:16px 6px; gap:2px;
+    }
+    .day-card.today .day-card-aside { background:var(--gold); border-right-color:var(--gold); }
+    .day-card.weekend-sat .day-card-aside { background:#f0f4ff; }
+    .day-card.weekend-sun .day-card-aside { background:#fff5f5; }
+    .day-aside-dow { font-family:'DM Mono',monospace; font-size:.58rem; font-weight:500; letter-spacing:2px; color:var(--muted); }
+    .day-card.today .day-aside-dow { color:rgba(255,255,255,.8); }
+    .day-card.weekend-sat .day-aside-dow { color:var(--blue); }
+    .day-card.weekend-sun .day-aside-dow { color:var(--red); }
+    .day-aside-num { font-family:'DM Mono',monospace; font-size:1.7rem; font-weight:600; color:var(--ink); line-height:1; }
+    .day-card.today .day-aside-num { color:#fff; }
+    .day-card.weekend-sat .day-aside-num { color:var(--blue); }
+    .day-card.weekend-sun .day-aside-num { color:var(--red); }
+    .day-aside-md { font-family:'DM Mono',monospace; font-size:.52rem; color:var(--muted); }
+    .day-card.today .day-aside-md { color:rgba(255,255,255,.7); }
+    .day-card-body { flex:1; padding:14px 18px; min-height:110px; }
+
+    /* ════════════════════════════════════════
+       장기 — 세로 타임라인
+    ════════════════════════════════════════ */
+    .vtl-outer {
+      display:flex;
+      gap:0;
+    }
+
+    /* 왼쪽: 세로 선 + 틱 */
+    .vtl-spine {
+      width:64px;
+      flex-shrink:0;
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      padding-right:0;
+    }
+
+    /* 세로선 */
+    .vtl-spine-line {
+      position:absolute;
+      top:0; bottom:0;
+      right:20px;
+      width:2.5px;
+      background:var(--ink);
+      border-radius:2px;
+    }
+    /* 시작/끝 캡 */
+    .vtl-spine-cap-top {
+      position:absolute;
+      top:0; right:14px;
+      width:15px; height:2.5px;
+      background:var(--ink); border-radius:2px;
+    }
+    .vtl-spine-cap-bot {
+      position:absolute;
+      bottom:0; right:14px;
+      width:15px; height:2.5px;
+      background:var(--ink); border-radius:2px;
+    }
+
+    /* 오른쪽: 구간들 */
+    .vtl-segments {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* 각 구간 행 */
+    .vtl-seg-row {
+      display:flex;
+      align-items:stretch;
+      position:relative;
+    }
+
+    /* 틱 + 레이블 (왼쪽) */
+    .vtl-tick-col {
+      width:64px;
+      flex-shrink:0;
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      padding-right:4px;
+    }
+
+    /* 틱 마크 (선에서 오른쪽으로 뻗는 수평선) */
+    .vtl-tick {
+      position:absolute;
+      right:16px; /* 세로선 위치 기준 */
+      top:0;
+      width:12px; height:2px;
+      background:var(--ink);
+      border-radius:1px;
+    }
+    /* 오늘 틱 */
+    .vtl-tick.is-today-tick { background:var(--gold); width:16px; }
+
+    /* 틱 레이블 */
+    .vtl-tick-label {
+      position:absolute;
+      right:32px;
+      top:-8px;
+      font-family:'DM Mono',monospace; font-size:.58rem;
+      color:var(--ink2); white-space:nowrap; text-align:right;
+      line-height:1.2;
+    }
+    .vtl-tick-label.is-month { font-weight:700; color:var(--ink); font-size:.65rem; }
+    .vtl-tick-label.is-today { color:var(--gold); font-weight:700; }
+
+    /* 오늘 마커 (세로선 위 점) */
+    .vtl-today-dot {
+      position:absolute;
+      right:12px; /* 세로선 중앙 */
+      top:-5px;
+      width:11px; height:11px; border-radius:50%;
+      background:var(--gold);
+      border:2px solid var(--surface);
+      box-shadow:0 0 0 1.5px var(--gold);
+      z-index:3;
+    }
+
+    /* 브래킷 (세로선에서 오른쪽으로 U자 역회전 = ⊏ 모양) */
+    .vtl-bracket-col {
+      width:28px;
+      flex-shrink:0;
+      position:relative;
+    }
+    .vtl-bracket-svg {
+      position:absolute;
+      top:0; left:0;
+      width:100%; height:100%;
+      overflow:visible;
+    }
+
+    /* 구간 콘텐츠 */
+    .vtl-seg-content {
+      flex:1;
+      padding:10px 12px 10px 6px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-height:90px;
+    }
+
+    /* 구간 헤더 */
+    .vtl-seg-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:6px;
+    }
+    .vtl-seg-period {
+      font-family:'DM Mono',monospace; font-size:.6rem;
+      color:var(--muted); white-space:nowrap;
+    }
+    .vtl-seg-period.is-now { color:var(--gold); font-weight:700; }
+
+    /* 합치기/분리 버튼 */
+    .vtl-merge-btn {
+      font-size:.55rem; padding:2px 7px;
+      border-radius:10px; border:1px solid var(--line);
+      background:var(--bg); color:var(--muted);
+      cursor:pointer; white-space:nowrap;
+      transition:all .15s; flex-shrink:0;
+    }
+    .vtl-merge-btn:hover { border-color:var(--gold); color:var(--gold); background:#fffbf0; }
+    .vtl-merge-btn.merged { border-color:var(--amber); color:var(--amber); background:#fff8ec; }
+
+    /* 할일 박스 */
+    .vtl-task-box {
+      background:var(--bg); border-radius:8px;
+      padding:8px 10px; flex:1;
+    }
+
+    /* 합쳐진 구간은 숨김 */
+    .vtl-seg-row.hidden-merged { display:none; }
+
+    /* 구분선 (월 경계) */
+    .vtl-month-divider {
+      height:1px;
+      background:var(--line);
+      margin:4px 0 4px 64px;
+      opacity:.6;
+    }
+
+    /* 오늘 TODAY 뱃지 */
+    .vtl-today-badge {
+      font-family:'DM Mono',monospace; font-size:.48rem; font-weight:700;
+      color:var(--gold); background:#fff8e6;
+      border:1px solid var(--amber); border-radius:8px;
+      padding:1px 5px; white-space:nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-top">
+    <div>
+      <div class="app-title">📋 스케줄러</div>
+      <div class="app-subtitle">단기 · 장기 플래너</div>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="short">📅 주간 스케줄러</button>
+    <button class="tab-btn" data-tab="long">🗓 연간 스케줄러</button>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- 주간 -->
+  <div class="view active" id="view-short">
+    <div class="nav-header">
+      <button class="nav-btn" id="prevWeek">←</button>
+      <div class="nav-center">
+        <div class="nav-main" id="weekRangeLabel">────</div>
+        <div class="nav-sub" id="weekSubLabel">──</div>
+      </div>
+      <button class="nav-btn" id="nextWeek">→</button>
+    </div>
+    <div class="week-cards" id="weekCards"></div>
+  </div>
+
+  <!-- 연간 -->
+  <div class="view" id="view-long">
+    <div class="nav-header">
+      <button class="nav-btn" id="prevYear">←</button>
+      <div class="nav-center">
+        <div class="nav-main" id="yearLabel">────</div>
+        <div class="nav-sub">연간 타임라인</div>
+      </div>
+      <button class="nav-btn" id="nextYear">→</button>
+    </div>
+    <!-- 세로 타임라인 -->
+    <div style="background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px 16px 32px;">
+      <div class="vtl-outer">
+        <!-- 세로선 (spine) -->
+        <div class="vtl-spine" id="vtlSpine">
+          <div class="vtl-spine-line" id="vtlSpineLine"></div>
+          <div class="vtl-spine-cap-top"></div>
+          <div class="vtl-spine-cap-bot"></div>
+        </div>
+        <!-- 구간 목록 -->
+        <div class="vtl-segments" id="vtlSegments"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ─── UTILS ─── */
+const pad2 = n => String(n).padStart(2,'0');
+const today = new Date();
+const todayStr = `${today.getFullYear()}-${pad2(today.getMonth()+1)}-${pad2(today.getDate())}`;
+
+function saveData(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
+function loadData(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
+
+/* ─── TAB ─── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ─── TASK AREA ─── */
+function buildTaskArea(storageKey) {
+  const wrap = document.createElement('div');
+  wrap.className = 'task-input-wrap';
+
+  function redraw() {
+    wrap.innerHTML = '';
+    const tasks = loadData(storageKey, []);
+    tasks.forEach((t, idx) => {
+      const row = document.createElement('div');
+      row.className = 'task-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.className = 'task-cb'; cb.checked = t.done;
+      cb.addEventListener('change', () => {
+        const ts = loadData(storageKey, []); ts[idx].done = cb.checked; saveData(storageKey, ts);
+        ta.classList.toggle('done', cb.checked);
+      });
+      const ta = document.createElement('textarea');
+      ta.className = 'task-text' + (t.done ? ' done' : '');
+      ta.value = t.text; ta.placeholder = '할 일 입력…'; ta.rows = 1;
+      ta.addEventListener('input', () => { ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; });
+      ta.addEventListener('blur', () => { const ts = loadData(storageKey,[]); ts[idx].text = ta.value; saveData(storageKey, ts); });
+      ta.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addTask();} });
+      setTimeout(() => { ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }, 0);
+      const del = document.createElement('button');
+      del.className = 'task-del'; del.textContent = '✕';
+      del.addEventListener('click', () => { const ts=loadData(storageKey,[]); ts.splice(idx,1); saveData(storageKey,ts); redraw(); });
+      row.appendChild(cb); row.appendChild(ta); row.appendChild(del);
+      wrap.appendChild(row);
+    });
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-task-btn'; addBtn.textContent = '+ 추가';
+    addBtn.addEventListener('click', addTask);
+    wrap.appendChild(addBtn);
+  }
+
+  function addTask() {
+    const ts = loadData(storageKey, []); ts.push({text:'',done:false}); saveData(storageKey, ts); redraw();
+    setTimeout(() => { const all=wrap.querySelectorAll('.task-text'); if(all.length) all[all.length-1].focus(); }, 10);
+  }
+  redraw();
+  return wrap;
+}
+
+/* ════════════════════════════════════════
+   주간 스케줄러 (월~일)
+════════════════════════════════════════ */
+const DOW_EN = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+let weekOffset = 0;
+
+function getMondayWeek(offset) {
+  const base = new Date(today);
+  const dow = (base.getDay()+6)%7;
+  base.setDate(base.getDate()-dow+offset*7);
+  const days=[];
+  for(let i=0;i<7;i++){const d=new Date(base);d.setDate(base.getDate()+i);days.push(d);}
+  return days;
+}
+function getWeekNumber(d) {
+  const jan1=new Date(d.getFullYear(),0,1);
+  return Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7);
+}
+
+function renderWeek() {
+  const days = getMondayWeek(weekOffset);
+  const first=days[0], last=days[6];
+  const sy=first.getFullYear()===last.getFullYear(), sm=sy&&first.getMonth()===last.getMonth();
+  const rangeText = sm
+    ? `${first.getFullYear()}년 ${first.getMonth()+1}월 ${first.getDate()}일 – ${last.getDate()}일`
+    : sy
+      ? `${first.getFullYear()}년 ${first.getMonth()+1}/${first.getDate()} – ${last.getMonth()+1}/${last.getDate()}`
+      : `${first.getFullYear()}/${first.getMonth()+1}/${first.getDate()} – ${last.getFullYear()}/${last.getMonth()+1}/${last.getDate()}`;
+  document.getElementById('weekRangeLabel').textContent = rangeText;
+  document.getElementById('weekSubLabel').textContent = `${days[3].getFullYear()}년 제 ${getWeekNumber(days[3])}주차`;
+  const wrap = document.getElementById('weekCards');
+  wrap.innerHTML = '';
+  days.forEach((d, i) => {
+    const dk = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    const isToday = dk===todayStr, isSat=i===5, isSun=i===6;
+    const card = document.createElement('div');
+    card.className = 'day-card'+(isToday?' today':'')+(isSat?' weekend-sat':'')+(isSun?' weekend-sun':'');
+    const aside = document.createElement('div');
+    aside.className = 'day-card-aside';
+    aside.innerHTML = `<div class="day-aside-dow">${DOW_EN[i]}</div><div class="day-aside-num">${d.getDate()}</div><div class="day-aside-md">${d.getMonth()+1}/${d.getDate()}</div>`;
+    const body = document.createElement('div');
+    body.className = 'day-card-body';
+    body.appendChild(buildTaskArea(`week_${dk}`));
+    card.appendChild(aside); card.appendChild(body);
+    wrap.appendChild(card);
+  });
+}
+document.getElementById('prevWeek').addEventListener('click', ()=>{ weekOffset--; renderWeek(); });
+document.getElementById('nextWeek').addEventListener('click', ()=>{ weekOffset++; renderWeek(); });
+
+/* ════════════════════════════════════════
+   연간 세로 타임라인
+   — 1년 = 12달, 각 달 = 상반(1~15) + 하반(16~말일) = 24구간
+   — 구간을 인접 구간과 합칠 수 있음 (mergeState 저장)
+════════════════════════════════════════ */
+let longYear = today.getFullYear();
+const MONTH_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+
+/* 24개 구간 생성: idx 0~23 */
+function buildAllSegments(y) {
+  const segs = [];
+  for(let m=1;m<=12;m++){
+    const total = daysInMonth(y,m);
+    const mid = 15;
+    segs.push({ m, half:0, start:1,   end:mid,   label:`${m}월 1일–15일`,   key:`vtl_${y}_${pad2(m)}_h1` });
+    segs.push({ m, half:1, start:mid+1, end:total, label:`${m}월 16일–${total}일`, key:`vtl_${y}_${pad2(m)}_h2` });
+  }
+  return segs;
+}
+
+/*
+  mergeState: { [year]: Set<string> }
+  머지 상태: "idx_next" 쌍이 Set에 있으면 idx와 idx+1이 합쳐진 상태
+  ex) "2_3" → 2번째와 3번째 구간이 합쳐짐
+  (합쳐지면 idx+1 행은 숨기고, idx의 할일 박스가 합쳐진 것을 씀)
+*/
+function getMergeKey(y) { return `vtl_merge_${y}`; }
+function loadMergeSet(y) {
+  const arr = loadData(getMergeKey(y), []);
+  return new Set(arr);
+}
+function saveMergeSet(y, set) {
+  saveData(getMergeKey(y), [...set]);
+}
+function pairKey(a,b){ return `${Math.min(a,b)}_${Math.max(a,b)}`; }
+
+/* 합쳐진 구간의 공유 storage key: 가장 작은 idx의 key를 씀 */
+function getMergedTaskKey(segs, idx, mergeSet) {
+  // 이 idx가 속한 병합 그룹의 첫 번째 idx를 찾아서 그것의 key를 반환
+  let first = idx;
+  while(first > 0 && mergeSet.has(pairKey(first-1, first))) first--;
+  return segs[first].key + '_merged';
+}
+
+function renderYear() {
+  document.getElementById('yearLabel').textContent = `${longYear}년`;
+  const segs = buildAllSegments(longYear);
+  const mergeSet = loadMergeSet(longYear);
+
+  const segWrap = document.getElementById('vtlSegments');
+  segWrap.innerHTML = '';
+
+  // 각 구간이 현재 합쳐진 그룹의 "첫번째"인지, "내부"인지 계산
+  // group[i] = 이 구간이 속한 그룹의 첫 번째 idx
+  const groupFirst = segs.map((_, i) => {
+    let f = i;
+    while(f > 0 && mergeSet.has(pairKey(f-1, f))) f--;
+    return f;
+  });
+
+  // 구간 행 렌더
+  segs.forEach((seg, idx) => {
+    const isThisMonth = today.getFullYear()===longYear && today.getMonth()+1===seg.m;
+    const isCurSeg = isThisMonth && today.getDate()>=seg.start && today.getDate()<=seg.end;
+    const isFirstInGroup = (groupFirst[idx] === idx);
+    const isMergedInto = !isFirstInGroup; // 이 행은 앞 행에 병합된 상태
+
+    // 이 그룹이 얼마나 많은 구간을 포함하는지
+    let groupSize = 1;
+    if(isFirstInGroup) {
+      let nx = idx+1;
+      while(nx < segs.length && mergeSet.has(pairKey(nx-1,nx))) { groupSize++; nx++; }
+    }
+
+    // 합칠 수 있는 다음 구간이 있는지 (마지막 구간 아니면 됨)
+    const canMergeDown = idx < segs.length-1;
+    // 이 그룹의 마지막 idx
+    let groupEnd = idx;
+    if(isFirstInGroup){ groupEnd = idx+groupSize-1; }
+
+    /* ── 행 컨테이너 ── */
+    const row = document.createElement('div');
+    row.className = 'vtl-seg-row';
+    row.dataset.idx = idx;
+    if(isMergedInto) { row.classList.add('hidden-merged'); }
+
+    /* ── 틱 컬럼 (왼쪽 레이블 + 틱) ── */
+    const tickCol = document.createElement('div');
+    tickCol.className = 'vtl-tick-col';
+    tickCol.style.position = 'relative';
+
+    // 틱 마크
+    const tick = document.createElement('div');
+    tick.className = 'vtl-tick' + (isCurSeg?' is-today-tick':'');
+    tickCol.appendChild(tick);
+
+    // 레이블
+    const tickLbl = document.createElement('div');
+    tickLbl.className = 'vtl-tick-label' + (seg.half===0?' is-month':'') + (isCurSeg?' is-today':'');
+    if(seg.half===0) {
+      tickLbl.innerHTML = `<span style="font-weight:700;color:var(--ink);display:block;">${MONTH_KO[seg.m-1]}</span><span style="color:var(--muted);font-weight:400;font-size:.52rem;">1일</span>`;
+    } else {
+      tickLbl.textContent = '16일';
+    }
+    tickCol.appendChild(tickLbl);
+
+    // 오늘 점
+    if(isCurSeg || (isThisMonth && today.getDate()>=seg.start && today.getDate()<=seg.end)) {
+      const dot = document.createElement('div');
+      dot.className = 'vtl-today-dot';
+      tickCol.appendChild(dot);
+    }
+
+    row.appendChild(tickCol);
+
+    /* ── 브래킷 SVG (세로로 긴 ⊏ 모양) ── */
+    const bracketCol = document.createElement('div');
+    bracketCol.className = 'vtl-bracket-col';
+
+    // 세로 높이는 CSS flex로 결정되므로 SVG를 절대위치로 채움
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS,'svg');
+    svg.setAttribute('class','vtl-bracket-svg');
+    svg.setAttribute('viewBox','0 0 28 100');
+    svg.setAttribute('preserveAspectRatio','none');
+
+    const isCurGroup = isFirstInGroup && segs.slice(idx, idx+groupSize).some(s => {
+      return today.getFullYear()===longYear && today.getMonth()+1===s.m
+        && today.getDate()>=s.start && today.getDate()<=s.end;
+    });
+
+    const sc = isCurGroup ? '#b8860b' : '#1c1c1e';
+    const sw = isCurGroup ? '3' : '2.2';
+
+    // 브래킷: 위에서 아래로 내려와 오른쪽으로 꺾이고 다시 위로 올라가는 ]모양을 시계 반시계로
+    // ⊏ 모양: 위쪽 수평 → 세로 → 아래쪽 수평
+    const path = document.createElementNS(svgNS,'path');
+    path.setAttribute('d','M 26,2 Q 22,2 22,6 L 22,94 Q 22,98 26,98');
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke', sc);
+    path.setAttribute('stroke-width', sw);
+    path.setAttribute('stroke-linecap','round');
+    path.setAttribute('stroke-linejoin','round');
+    svg.appendChild(path);
+    bracketCol.appendChild(svg);
+    row.appendChild(bracketCol);
+
+    /* ── 콘텐츠 ── */
+    const content = document.createElement('div');
+    content.className = 'vtl-seg-content';
+
+    // 헤더
+    const header = document.createElement('div');
+    header.className = 'vtl-seg-header';
+
+    // 기간 레이블 (합쳐진 경우 전체 범위 표시)
+    const periodLbl = document.createElement('div');
+    let periodText = '';
+    if(isFirstInGroup && groupSize > 1) {
+      const lastSeg = segs[idx+groupSize-1];
+      periodText = `${seg.m}월 ${seg.start}일 – ${lastSeg.m}월 ${lastSeg.end}일`;
+    } else {
+      periodText = `${seg.m}월 ${seg.start}일 – ${seg.end}일`;
+    }
+    periodLbl.className = 'vtl-seg-period' + (isCurGroup?' is-now':'');
+    periodLbl.textContent = periodText;
+    if(isThisMonth && today.getDate()>=seg.start) {
+      const badge = document.createElement('span');
+      badge.className = 'vtl-today-badge';
+      badge.textContent = 'TODAY';
+      // only show on current seg
+      if(isCurSeg || (isFirstInGroup && isCurGroup)) header.appendChild(badge);
+    }
+    header.appendChild(periodLbl);
+
+    // 합치기/분리 버튼 그룹
+    const btnGroup = document.createElement('div');
+    btnGroup.style.cssText = 'display:flex;gap:4px;align-items:center;flex-shrink:0;';
+
+    // 아래 구간과 합치기 (그룹의 마지막 요소에서만)
+    if(isFirstInGroup) {
+      const lastInGroup = idx+groupSize-1;
+      if(lastInGroup < segs.length-1) {
+        const mergeBtn = document.createElement('button');
+        const alreadyMerged = mergeSet.has(pairKey(lastInGroup, lastInGroup+1));
+        mergeBtn.className = 'vtl-merge-btn' + (alreadyMerged?' merged':'');
+        mergeBtn.textContent = alreadyMerged ? '↕ 분리' : '↕ 합치기';
+        mergeBtn.addEventListener('click', () => {
+          const ms = loadMergeSet(longYear);
+          const pk = pairKey(lastInGroup, lastInGroup+1);
+          if(ms.has(pk)) ms.delete(pk); else ms.add(pk);
+          saveMergeSet(longYear, ms);
+          renderYear();
+        });
+        btnGroup.appendChild(mergeBtn);
+      }
+    }
+    header.appendChild(btnGroup);
+    content.appendChild(header);
+
+    // 할일 박스
+    const taskBox = document.createElement('div');
+    taskBox.className = 'vtl-task-box';
+    // 병합된 그룹이면 공유 key, 단독이면 자기 key
+    const taskKey = (isFirstInGroup && groupSize>1)
+      ? getMergedTaskKey(segs, idx, mergeSet)
+      : seg.key;
+    taskBox.appendChild(buildTaskArea(taskKey));
+    content.appendChild(taskBox);
+
+    row.appendChild(content);
+    segWrap.appendChild(row);
+
+    // 하반기 뒤(다음 달 전)에는 미세한 구분선 삽입
+    if(seg.half===1 && seg.m < 12) {
+      const div = document.createElement('div');
+      div.className = 'vtl-month-divider';
+      // 구분선도 숨겨진 행과 같이 처리하지 않음 (항상 표시)
+      segWrap.appendChild(div);
+    }
+  });
+
+  // 마지막 구간 끝 틱 (12월 말일)
+  const endRow = document.createElement('div');
+  endRow.className = 'vtl-seg-row';
+  endRow.style.minHeight = '0';
+  const endTick = document.createElement('div');
+  endTick.className = 'vtl-tick-col';
+  endTick.style.position = 'relative';
+  const et = document.createElement('div');
+  et.className = 'vtl-tick';
+  endTick.appendChild(et);
+  const el = document.createElement('div');
+  el.className = 'vtl-tick-label';
+  el.textContent = '12월 31일';
+  endTick.appendChild(el);
+  endRow.appendChild(endTick);
+  segWrap.appendChild(endRow);
+
+  // spine 높이 맞추기
+  updateSpineHeight();
+}
+
+function updateSpineHeight(){
+  const spine = document.getElementById('vtlSpine');
+  const segs  = document.getElementById('vtlSegments');
+  if(spine && segs) {
+    spine.style.minHeight = segs.offsetHeight + 'px';
+  }
+}
+
+document.getElementById('prevYear').addEventListener('click', ()=>{ longYear--; renderYear(); });
+document.getElementById('nextYear').addEventListener('click', ()=>{ longYear++; renderYear(); });
+
+/* ─── INIT ─── */
+renderWeek();
+renderYear();
+window.addEventListener('resize', updateSpineHeight);
+</script>
+</body>
+</html>
